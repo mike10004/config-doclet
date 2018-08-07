@@ -24,16 +24,20 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -51,10 +55,12 @@ public class MyNewDoclet implements Doclet {
     private Predicate<? super Name> elementNamePredicate;
     private Reporter reporter;
     private final Set<Doclet.Option> options;
+    private final Map<String, List<String>> processage;
 
     public MyNewDoclet() {
         actionableTags = new HashSet<>();
         options = new HashSet<>();
+        processage = new HashMap<>();
     }
 
     @Override
@@ -138,6 +144,10 @@ public class MyNewDoclet implements Doclet {
 
     protected boolean produceOutput(List<ModelItem> items) {
         File outputFile = resolveOutputPath().toFile();
+        //noinspection ResultOfMethodCallIgnored
+        if (!outputFile.getParentFile().isDirectory()) {
+            outputFile.getParentFile().mkdirs();
+        }
         Function<? super ModelItem, String> formatter = getItemFormatter();
         try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(outputFile), getOutputCharset()))) {
             for (ModelItem item : items) {
@@ -307,26 +317,90 @@ public class MyNewDoclet implements Doclet {
         return true;
     }
 
+    private Set<Doclet.Option> deconflict(Set<? extends Doclet.Option> superset, Set<? extends Doclet.Option> preferred) {
+        Set<Doclet.Option> combo = new HashSet<>(preferred);
+        for (Doclet.Option disliked : superset) {
+            for (Doclet.Option preferredOne : preferred) {
+                if (!BasicOption.isConflicting(preferredOne, disliked)) {
+                    combo.add(disliked);
+                }
+            }
+        }
+        return combo;
+    }
+
+    private boolean doProcessOption(String option, List<String> args) {
+        processage.put(option, args);
+        return true;
+    }
+
+    private Set<? extends Doclet.Option> getInternalOptions() {
+        //noinspection RedundantArrayCreation
+        return new HashSet<>(Arrays.asList(new Doclet.Option[]{
+                BasicOption.builder("-d", this::doProcessOption)
+                        .arg("<path>")
+                        .description("set output directory")
+                        .build(),
+        }));
+    }
+
     @Override
-    public Set<? extends Option> getSupportedOptions() {
+    public Set<? extends Doclet.Option> getSupportedOptions() {
+        if (!this.options.isEmpty()) {
+            throw new IllegalStateException("getSupportedOptions already invoked");
+        }
         // TODO add option for element name predicate
         //noinspection RedundantStreamOptionalCall
-        new StandardDoclet().getSupportedOptions().stream()
+        Set<? extends Doclet.Option> defaultOptions = new StandardDoclet().getSupportedOptions().stream()
                 .filter(this::isSupported)
-                .forEach(this.options::add);
+                .map(this::wrap)
+                .collect(Collectors.toSet());
+        Set<? extends Doclet.Option> internalOptions = getInternalOptions();
+        this.options.addAll(deconflict(defaultOptions, internalOptions));
         return options;
     }
 
     protected Path resolveOutputPath() {
-        String outputDirectory = this.options.stream().filter(option -> {
-            return option.getNames().contains("-d");
-        }).map(Option::getParameters)
-          .findFirst().orElseGet(() -> new File(System.getProperty("user.dir")).getAbsolutePath());
+        String defaultValue = new File(System.getProperty("user.dir")).getAbsolutePath();
+        String outputDirectory = getOptionString("-d", defaultValue);
         return new File(outputDirectory).toPath().resolve(getOutputFilename());
     }
 
     protected String getOutputFilename() {
         // TODO get filename from options
         return "cfg-doclet-output.txt";
+    }
+
+    private <T> T getOptionValue(String name, Function<List<String>, T> parser, T defaultValue) {
+        Doclet.Option target = this.options.stream().filter(option -> {
+            return option.getNames().contains(name);
+        }).findFirst().orElseThrow(() -> new IllegalArgumentException("no option by name " + name));
+        List<String> allNames = target.getNames();
+        for (String key : this.processage.keySet()) {
+            if (allNames.contains(key)) {
+                List<String> args = this.processage.get(key);
+                return parser.apply(args);
+            }
+        }
+        return defaultValue;
+    }
+
+    private String getOptionString(String name, String defaultValue) {
+        return getOptionValue(name, list -> list.get(0), defaultValue);
+    }
+
+    private BasicOption wrap(Doclet.Option opt) {
+        BasicOption.Processor p = (option, arguments) -> {
+            List<String> originalArgs = new ArrayList<>(arguments);
+            boolean retval = opt.process(option, arguments);
+            doProcessOption(option, originalArgs);
+            return retval;
+        };
+        return BasicOption.builder(opt.getNames().get(0), p)
+                .names(opt.getNames().subList(1, opt.getNames().size()).stream())
+                .description(opt.getDescription())
+                .parameters(opt.getParameters())
+                .argCount(opt.getArgumentCount())
+                .build();
     }
 }
