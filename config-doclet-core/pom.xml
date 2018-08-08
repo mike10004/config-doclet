@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.github.mike10004</groupId>
         <artifactId>config-doclet</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>0.1</version>
     </parent>
     <artifactId>config-doclet-core</artifactId>
     <name>config-doclet-core</name>
