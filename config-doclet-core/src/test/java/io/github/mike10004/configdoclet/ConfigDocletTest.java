@@ -161,7 +161,7 @@ public class ConfigDocletTest {
             "    ]\n" +
             "  },\n" +
             "  {\n" +
-            "    \"key\": \"cfg.numRepetitions\",\n" +
+            "    \"key\": \"app.numRepetitions\",\n" +
             "    \"description\": \"Setting specifying number of repetitions. A value of N means that the message is printed N times.\",\n" +
             "    \"defaultValue\": \"1\",\n" +
             "    \"exampleValues\": []\n" +

@@ -35,7 +35,7 @@ public class App {
      * Setting specifying number of repetitions. A value of N means that the message is printed N times.
      * @cfg.default {@link #DEFAULT_NUM_REPETITIONS}
      */
-    public static final String CFG_NUM_REPS = "cfg.numRepetitions";
+    public static final String CFG_NUM_REPS = "app.numRepetitions";
 
 
     private static final int DEFAULT_NUM_REPETITIONS = 1;
