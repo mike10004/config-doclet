@@ -121,6 +121,8 @@ public class ConfigDocletTest {
 
     @Test
     public void defaultPath_json() throws Exception  {
+
+        com.google.gson.GsonBuilder.class.getName();
         String output = defaultPath(ConfigDoclet.OUTPUT_JSON);
         ConfigSetting[] items = new Gson().fromJson(output, ConfigSetting[].class);
         assertNotNull("deserialized", items);
@@ -128,13 +130,22 @@ public class ConfigDocletTest {
         assertArrayEquals("items", expected, items);
     }
 
+    private String buildClasspath() throws URISyntaxException {
+        return Stream.of(new File(Tests.config().get("project.build.outputDirectory")),
+                new File(getClass().getResource("/gson-2.8.5.jar").toURI()))
+                .map(File::getAbsolutePath)
+                .collect(Collectors.joining(File.pathSeparator));
+    }
+
     private String defaultPath(String outputFormat) throws Exception  {
         File sourcepath = prepareProject().toPath().resolve("src/main/java").toFile();
-        File docletClasspath = new File(Tests.config().get("project.build.outputDirectory"));
+        System.out.format("using sourcepath %s%n", sourcepath);
+        checkState(sourcepath.isDirectory(), "not a directory: %s", sourcepath);
+        String docletClasspath = buildClasspath();
         File outputDir = temporaryFolder.newFolder();
         System.out.format("docletClasspath = %s%n", docletClasspath);
         int exitCode = invokeJavadocStart0(new String[]{"-doclet", ConfigDoclet.class.getName(),
-                "-docletpath", docletClasspath.getAbsolutePath(),
+                "-docletpath", docletClasspath,
                 "-charset", "UTF-8",
                 "-sourcepath", sourcepath.getAbsolutePath(),
                 "-d", outputDir.getAbsolutePath(),

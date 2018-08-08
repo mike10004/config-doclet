@@ -261,6 +261,7 @@ public class ConfigDoclet implements Doclet {
             case OUTPUT_PROPERTIES:
                 return new PropertiesOutputFormatter();
             case OUTPUT_JSON:
+                reporter.print(Diagnostic.Kind.NOTE, String.format("java.class.path=%s", System.getProperty("java.class.path")));
                 return new GsonOutputFormatter();
             default:
                 throw new IllegalArgumentException("invalid output format");
@@ -282,7 +283,8 @@ public class ConfigDoclet implements Doclet {
         try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(outputFile), getOutputCharset()))) {
             formatter.format(items, out);
         } catch (IOException e) {
-            reporter.print(Diagnostic.Kind.ERROR, "failed to write to output file " + outputFile);
+            log.log(Level.SEVERE, "failed to write output file", e);
+            reporter.print(Diagnostic.Kind.ERROR, "failed to write to output file " + outputFile + " due to IOException " + e.getMessage());
             return false;
         }
         return true;
