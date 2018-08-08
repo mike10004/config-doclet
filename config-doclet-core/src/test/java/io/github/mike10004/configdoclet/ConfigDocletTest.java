@@ -14,9 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -26,8 +24,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,7 +40,7 @@ public class ConfigDocletTest {
     private static final Charset STD_CHARSET = StandardCharsets.UTF_8;
 
     // http://in.relation.to/2017/12/06/06-calling-jdk-tools-programmatically-on-java-9/
-    private ToolResult invokeJavadocStart0(String[] commandLineArgs) throws Exception {
+    private ToolResult invokeJavadocStart(String[] commandLineArgs) throws Exception {
         java.util.spi.ToolProvider javadoc = java.util.spi.ToolProvider.findFirst("javadoc").orElseThrow(() -> new IllegalStateException("no javadoc tool available"));
         ByteBucket stdout = new ByteBucket(1024), stderr = new ByteBucket(1024);
         TeeOutputStream duplexStderr = new TeeOutputStream(stderr.stream(), System.err);
@@ -86,28 +82,6 @@ public class ConfigDocletTest {
         }
     }
 
-    private int invokeJavadocStart(String[] commandLineArgs) throws Exception {
-        Class<?> contextClass = Class.forName("com.sun.tools.javac.util.Context");
-        Object context = contextClass.getConstructor().newInstance();
-        Reflections.invoke(Class.forName("jdk.javadoc.internal.tool.Messager"), null, "preRegister", new Class[]{contextClass, String.class}, new Object[]{context, "SomeProgram"});
-        System.out.format("registered log in %s%n", context);
-        Class<?> startClass = Class.forName("jdk.javadoc.internal.tool.Start");
-        Constructor<?>[] ctors = startClass.getConstructors();
-        Constructor<?> ctor = Stream.of(ctors).filter(c -> c.getParameters().length == 1 && contextClass.equals(c.getParameters()[0].getType()))
-                .findFirst().orElseThrow(() -> new IllegalStateException("constructor accepting Context arg not found"));
-        ctor.setAccessible(true);
-        Object startInstance = ctor.newInstance(context);
-        Method beginMethod = startClass.getDeclaredMethod("begin", String[].class);
-        beginMethod.setAccessible(true);
-        Object[] invokeMethodArgs = {
-                commandLineArgs
-        };
-        Object result = beginMethod.invoke(startInstance, invokeMethodArgs);
-        System.out.println(result);
-        int exitCode = parseExitCode(result);
-        return exitCode;
-    }
-
     private File prepareProject() throws URISyntaxException, IOException {
         File dir = temporaryFolder.newFolder();
         SampleProject.getDefault().copyTestProject(dir.toPath());
@@ -121,8 +95,6 @@ public class ConfigDocletTest {
 
     @Test
     public void defaultPath_json() throws Exception  {
-
-        com.google.gson.GsonBuilder.class.getName();
         String output = defaultPath(ConfigDoclet.OUTPUT_JSON);
         ConfigSetting[] items = new Gson().fromJson(output, ConfigSetting[].class);
         assertNotNull("deserialized", items);
@@ -144,7 +116,7 @@ public class ConfigDocletTest {
         String docletClasspath = buildClasspath();
         File outputDir = temporaryFolder.newFolder();
         System.out.format("docletClasspath = %s%n", docletClasspath);
-        int exitCode = invokeJavadocStart0(new String[]{"-doclet", ConfigDoclet.class.getName(),
+        int exitCode = invokeJavadocStart(new String[]{"-doclet", ConfigDoclet.class.getName(),
                 "-docletpath", docletClasspath,
                 "-charset", "UTF-8",
                 "-sourcepath", sourcepath.getAbsolutePath(),
@@ -195,12 +167,6 @@ public class ConfigDocletTest {
             "    \"exampleValues\": []\n" +
             "  }\n" +
             "]";
-
-    private static int parseExitCode(Object result) {
-        Matcher m = Pattern.compile("\\w+\\((\\d+)\\)").matcher(result.toString());
-        checkState(m.find());
-        return Integer.parseInt(m.group(1));
-    }
 
     @Test
     public void numActionableTags() {
