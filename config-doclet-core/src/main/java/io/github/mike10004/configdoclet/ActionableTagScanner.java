@@ -2,6 +2,7 @@ package io.github.mike10004.configdoclet;
 
 import com.sun.source.doctree.BlockTagTree;
 import com.sun.source.doctree.DocTree;
+import com.sun.source.doctree.StartElementTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
 import com.sun.source.util.DocTreeScanner;
 
@@ -10,12 +11,17 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-abstract class MyDocTreeVisitor<R, D> extends DocTreeScanner<R, D> {
+abstract class ActionableTagScanner<R, D> extends DocTreeScanner<R, D> {
 
     private final Set<String> actionableTags;
 
-    public MyDocTreeVisitor(Collection<String> actionableTags) {
+    public ActionableTagScanner(Collection<String> actionableTags) {
         this.actionableTags = Collections.unmodifiableSet(new HashSet<>(actionableTags));
+    }
+
+    @Override
+    public R visitStartElement(StartElementTree node, D d) {
+        return super.visitStartElement(node, d);
     }
 
     @Override

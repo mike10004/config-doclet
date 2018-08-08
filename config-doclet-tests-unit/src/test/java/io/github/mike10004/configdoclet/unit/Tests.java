@@ -1,6 +1,4 @@
-package io.github.mike10004.configdoclet;
-
-import io.github.mike10004.configdoclet.unit.TestConfig;
+package io.github.mike10004.configdoclet.unit;
 
 public class Tests {
 
@@ -9,5 +7,4 @@ public class Tests {
     public static TestConfig config() {
         return TestConfig.getInstance(Tests.class);
     }
-
 }

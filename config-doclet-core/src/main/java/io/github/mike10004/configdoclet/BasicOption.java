@@ -127,8 +127,14 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
             description = "set " + name;
         }
 
-        public Builder names(Stream<String> names) {
-            names.forEach(this.names::add);
+        public Builder alias(String name) {
+            requireNonNull(name);
+            this.names.add(name);
+            return this;
+        }
+
+        public Builder aliases(Stream<String> names) {
+            names.forEach(this::alias);
             return this;
         }
 

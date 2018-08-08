@@ -9,9 +9,8 @@ package com.example;
 public class App {
 
     /**
-     * Message configuration property name.
-     * @cfg.description the message to print
-     * @cfg.default {@link #GOOD_MESSAGE}
+     * Message configuration property name. This second sentence contains some detail about the property.
+     * @cfg.default {@link #DEFAULT_MESSAGE}
      * @cfg.example Looking good, Billy Ray!
      * @cfg.example Feeling good, Louis!
      * @cfg.type string
@@ -20,7 +19,7 @@ public class App {
 
     /**
      * Destination configuration property name.
-     * @cfg.description output destination
+     * @cfg.description this description overrides the sentences
      * @cfg.default stdout
      * @cfg.example stderr
      * @cfg.example null
@@ -30,7 +29,16 @@ public class App {
     /**
      * The default message.
      */
-    public static final String GOOD_MESSAGE = "Hello, world!";
+    public static final String DEFAULT_MESSAGE = "Hello, world!";
+
+    /**
+     * Setting specifying number of repetitions. A value of N means that the message is printed N times.
+     * @cfg.default {@link #DEFAULT_NUM_REPETITIONS}
+     */
+    public static final String CFG_NUM_REPS = "cfg.numRepetitions";
+
+
+    private static final int DEFAULT_NUM_REPETITIONS = 1;
 
     private java.io.PrintStream output;
 
@@ -64,7 +72,7 @@ public class App {
      */
     public static void main( String[] args )
     {
-        new App().printMessage(GOOD_MESSAGE);
+        new App().printMessage(DEFAULT_MESSAGE);
     }
 
 }

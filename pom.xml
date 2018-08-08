@@ -12,6 +12,8 @@
     <packaging>pom</packaging>
     <modules>
         <module>config-doclet-core</module>
+        <module>config-doclet-tests-unit</module>
+        <module>config-doclet-tests-common</module>
     </modules>
     <url>https://github.com/mike10004/config-doclet</url>
     <inceptionYear>2018</inceptionYear>
@@ -37,6 +39,7 @@
     </scm>
 
     <properties>
+        <jdk.version.minimum>1.9</jdk.version.minimum>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <slf4j.version>1.7.25</slf4j.version>
@@ -53,6 +56,30 @@
         </repository>
     </distributionManagement>
 
+    <profiles>
+        <profile>
+            <id>skip-tests</id>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <artifactId>maven-surefire-plugin</artifactId>
+                            <configuration>
+                                <skipTests>true</skipTests>
+                            </configuration>
+                        </plugin>
+                        <plugin>
+                            <artifactId>maven-failsafe-plugin</artifactId>
+                            <configuration>
+                                <skipTests>true</skipTests>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
+        </profile>
+    </profiles>
+
     <build>
         <pluginManagement>
             <plugins>
@@ -60,8 +87,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.6.0</version>
                     <configuration>
-                        <source>1.9</source>
-                        <target>1.9</target>
+                        <source>${jdk.version.minimum}</source>
+                        <target>${jdk.version.minimum}</target>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -165,6 +192,21 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>26.0-jre</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.6</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
