@@ -1,6 +1,8 @@
 package io.github.mike10004.configdoclet;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.CharSource;
+import com.google.common.io.Resources;
 import com.google.gson.Gson;
 import io.github.mike10004.configdoclet.unit.SampleProject;
 import org.apache.commons.io.output.TeeOutputStream;
@@ -13,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.Reader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
@@ -23,12 +26,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -39,7 +44,7 @@ public class ConfigDocletTest {
     @Rule
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private static final Charset STD_CHARSET = StandardCharsets.UTF_8;
+    private static final Charset STD_CHARSET = UTF_8;
 
     // http://in.relation.to/2017/12/06/06-calling-jdk-tools-programmatically-on-java-9/
     private ToolResult invokeJavadocStart(String[] commandLineArgs) throws Exception {
@@ -100,7 +105,7 @@ public class ConfigDocletTest {
         String output = execute(new String[]{"--output-format=" + ConfigDoclet.OUTPUT_FORMAT_JSON});
         ConfigSetting[] items = new Gson().fromJson(output, ConfigSetting[].class);
         assertNotNull("deserialized", items);
-        Stream<String> required = Stream.of("app.server.attire", "app.choice.default");
+        Stream<String> required = Stream.of("app.server.attire", "app.choice.default", "app.undocumentedSetting");
         required.forEach(settingKey -> {
             assertTrue("setting " + settingKey, Arrays.stream(items).anyMatch(setting -> settingKey.equals(setting.key)));
         });
@@ -121,11 +126,37 @@ public class ConfigDocletTest {
         assertEquals("settings[0].key", "wacky.setting.name", settings[0].key);
     }
 
-    private String buildClasspath() throws URISyntaxException {
-        return Stream.of(new File(Tests.config().get("project.build.outputDirectory")),
-                new File(getClass().getResource("/gson-2.8.5.jar").toURI()))
-                .map(File::getAbsolutePath)
+    @Test
+    public void useFieldNamePattern() throws Exception {
+        String pattern = "WACKY_*";
+        String[] args = {
+                ConfigDoclet.OPT_OUTPUT_FORMAT, ConfigDoclet.OUTPUT_FORMAT_JSON,
+                ConfigDoclet.OPT_FIELD_NAME_PATTERN + "=" + pattern
+        };
+        String output = execute(args);
+        ConfigSetting[] settings = new Gson().fromJson(output, ConfigSetting[].class);
+        assertEquals("settings.length", 1, settings.length);
+        assertEquals("settings[0].key", "wacky.setting.name", settings[0].key);
+    }
+
+    private String buildClasspath() throws URISyntaxException, IOException {
+//        return Stream.of(new File(Tests.config().get("project.build.outputDirectory")),
+//                new File(getClass().getResource("/gson-2.8.5.jar").toURI()))
+//                .map(File::getAbsolutePath)
+//                .collect(Collectors.joining(File.pathSeparator));
+        CharSource cs = Resources.asCharSource(getClass().getResource("/dependencies.txt"), UTF_8);
+        List<MavenRepositoryItem> repoItems;
+        try (Reader reader = cs.openStream()) {
+            repoItems = new MavenDependencyListParser().parseList(reader);
+        }
+        String docletPart = new File(Tests.config().get("project.build.outputDirectory")).getAbsolutePath();
+        Stream<String> cpComponents = repoItems.stream()
+                .map(item -> item.artifactPathname)
+                .filter(Objects::nonNull)
+                .map(File::getAbsolutePath);
+        String cp = Stream.concat(Stream.of(docletPart), cpComponents)
                 .collect(Collectors.joining(File.pathSeparator));
+        return cp;
     }
 
     private String execute(String[] moreArgs) throws Exception  {
@@ -150,28 +181,18 @@ public class ConfigDocletTest {
         allArgsList.addAll(Arrays.asList(moreArgs));
         allArgsList.addAll(Arrays.asList(packages));
         String[] allArgs = allArgsList.toArray(new String[0]);
+        System.out.format("arguments: %s%n", Arrays.toString(allArgs));
         ToolResult result = invokeJavadocStart(allArgs);
         assertEquals("exit code", 0, result.exitCode);
         Collection<File> filesInOutputDir = org.apache.commons.io.FileUtils.listFiles(outputDir, null, true);
         assertEquals("one file in output dir", 1, filesInOutputDir.size());
         File outputFile = filesInOutputDir.iterator().next();
-        String output = com.google.common.io.Files.asCharSource(outputFile, StandardCharsets.UTF_8).read();
+        String output = com.google.common.io.Files.asCharSource(outputFile, UTF_8).read();
         System.out.println(output);
         return output;
     }
 
     private static final String EXPECTED_DEFAULT_MODEL_ITEMS_JSON = "[\n" +
-            "  {\n" +
-            "    \"key\": \"app.choice.default\",\n" +
-            "    \"description\": \"Setting that specifies the default choice.\",\n" +
-            "    \"defaultValue\": \"STAY\",\n" +
-            "    \"exampleValues\": []\n" +
-            "  },\n" +
-            "  {\n" +
-            "    \"key\": \"app.server.attire\",\n" +
-            "    \"description\": \"Setting that determines what style attire the server will be wearing.\",\n" +
-            "    \"exampleValues\": []\n" +
-            "  },\n" +
             "  {\n" +
             "    \"key\": \"app.message\",\n" +
             "    \"description\": \"Message configuration property name. This second sentence contains some detail about the property.\",\n" +
@@ -202,6 +223,21 @@ public class ConfigDocletTest {
             "    \"key\": \"app.numRepetitions\",\n" +
             "    \"description\": \"Setting specifying number of repetitions. A value of N means that the message is printed N times.\",\n" +
             "    \"defaultValue\": \"1\",\n" +
+            "    \"exampleValues\": []\n" +
+            "  },\n" +
+            "  {\n" +
+            "    \"key\": \"app.undocumentedSetting\",\n" +
+            "    \"exampleValues\": []\n" +
+            "  },\n" +
+            "  {\n" +
+            "    \"key\": \"app.server.attire\",\n" +
+            "    \"description\": \"Setting that determines what style attire the server will be wearing.\",\n" +
+            "    \"exampleValues\": []\n" +
+            "  },\n" +
+            "  {\n" +
+            "    \"key\": \"app.choice.default\",\n" +
+            "    \"description\": \"Setting that specifies the default choice.\",\n" +
+            "    \"defaultValue\": \"STAY\",\n" +
             "    \"exampleValues\": []\n" +
             "  }\n" +
             "]";

@@ -44,6 +44,8 @@ public class App {
 
     private static final int DEFAULT_NUM_REPETITIONS = 1;
 
+    private static final String CFG_UNDOCUMENTED = "app.undocumentedSetting";
+
     private java.io.PrintStream output;
 
     /**

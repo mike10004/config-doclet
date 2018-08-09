@@ -35,26 +35,6 @@
             <plugins>
             </plugins>
         </pluginManagement>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.1.1</version>
-                <executions>
-                    <execution>
-                        <id>prepare-core-jar</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>list</goal>
-                        </goals>
-                        <configuration>
-                            <outputFile>${project.build.testOutputDirectory}/dependencies.txt</outputFile>
-                            <outputAbsoluteArtifactFilename>true</outputAbsoluteArtifactFilename>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
     </build>
     <dependencies>
         <dependency>

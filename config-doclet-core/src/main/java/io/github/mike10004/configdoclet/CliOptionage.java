@@ -68,10 +68,6 @@ class CliOptionage implements Optionage {
         BasicOption.Processor processor = processage.processor();
         //noinspection RedundantArrayCreation
         return new HashSet<>(Arrays.asList(new Doclet.Option[]{
-                BasicOption.builder(ConfigDoclet.OPT_OUTPUT_DIRECTORY, processor)
-                        .arg("<path>")
-                        .description("set output directory")
-                        .build(),
                 BasicOption.builder(ConfigDoclet.OPT_OUTPUT_FORMAT, processor)
                         .alias("--output-format")
                         .arg("<type>")
@@ -85,7 +81,7 @@ class CliOptionage implements Optionage {
                         .arg("<filename>")
                         .description("set output filename")
                         .build(),
-                BasicOption.builder(ConfigDoclet.OPT_FIELD_PATTERN, processor)
+                BasicOption.builder(ConfigDoclet.OPT_FIELD_NAME_PATTERN, processor)
                         .arg("<patterns>")
                         .description("restrict documentable fields to those whose name matches a wildcard pattern (using '*' and '?'); delimit multiple patterns with commas or whitespace")
                         .build()

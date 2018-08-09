@@ -57,7 +57,7 @@ public class ConfigDoclet implements Doclet {
 
     static final String OPT_OUTPUT_DIRECTORY = "-d";
     static final String OPT_OUTPUT_FILENAME = "--output-filename";
-    static final String OPT_FIELD_PATTERN = "--output-filename";
+    static final String OPT_FIELD_NAME_PATTERN = "--field-pattern";
     static final String OPT_FIELD_NAME_REGEX = "--field-regex";
     static final String OPT_OUTPUT_FORMAT = "-outputformat";
     static final String OUTPUT_FORMAT_PROPERTIES = "properties";
@@ -144,7 +144,7 @@ public class ConfigDoclet implements Doclet {
     }
 
     Predicate<? super CharSequence> constructElementNamePredicate() {
-        @Nullable String fieldNamePattern = optionage.getOptionString(OPT_FIELD_PATTERN, null);
+        @Nullable String fieldNamePattern = optionage.getOptionString(OPT_FIELD_NAME_PATTERN, null);
         @Nullable String fieldNameRegex = optionage.getOptionString(OPT_FIELD_NAME_REGEX, null);
         if (fieldNamePattern != null && fieldNameRegex != null) {
             reporter.print(Diagnostic.Kind.WARNING, "name predicate regex and pattern are both specified; only one will be used, and you don't know which");
@@ -229,16 +229,20 @@ public class ConfigDoclet implements Doclet {
         relevantFields.forEach(enclosed -> {
                     log.log(defaultLevel, () -> String.format("enclosed: kind=%s; name=%s", enclosed.getKind(), enclosed.getSimpleName()));
                     DocCommentTree tree = environment.getDocTrees().getDocCommentTree(enclosed);
-                    if (tree != null) {
-                        Object constValue = enclosed.getConstantValue();
-                        if (constValue != null) {
-                            ConfigSetting.Builder b = prepareBuilder(enclosed, constValue, tree.getFullBody());
+                    Object constValue = enclosed.getConstantValue();
+                    if (constValue != null) {
+                        ConfigSetting.Builder b = prepareBuilder(enclosed, constValue);
+                        if (tree != null) {
+                            String description = createDescriptionFromFullBody(tree.getFullBody());
+                            b.description(description);
                             CollectingScanner visitor = new CollectingScanner(actionableTags, enclosed, b, linkResolver);
                             //noinspection RedundantCast
                             visitor.scan(tree, (Void) null);
-                            ConfigSetting item = b.build();
-                            items.add(item);
+                        } else {
+                            reporter.print(Diagnostic.Kind.NOTE, String.format("element has no comment: %s", enclosed.getSimpleName()));
                         }
+                        ConfigSetting item = b.build();
+                        items.add(item);
                     } else {
                         reporter.print(Diagnostic.Kind.NOTE, String.format("element does not have constant value: %s", enclosed.getSimpleName()));
                     }
@@ -344,11 +348,9 @@ public class ConfigDoclet implements Doclet {
         }
     }
 
-    private ConfigSetting.Builder prepareBuilder(@SuppressWarnings("unused") VariableElement element, Object constValue, List<? extends DocTree> fullBody) {
+    private ConfigSetting.Builder prepareBuilder(@SuppressWarnings("unused") VariableElement element, Object constValue) {
         ConfigSetting.Builder b = ConfigSetting.builder();
         b.key(constValue.toString());
-        String description = createDescriptionFromFullBody(fullBody);
-        b.description(description);
         return b;
     }
 
