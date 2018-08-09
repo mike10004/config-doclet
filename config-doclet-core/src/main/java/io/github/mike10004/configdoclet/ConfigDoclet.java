@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,45 +44,135 @@ import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Doclet that produces documentation on configuration settings your code uses.
+ */
 public class ConfigDoclet implements Doclet {
 
     private final Level defaultLevel = Level.FINER;
 
     private static final Logger log = Logger.getLogger(ConfigDoclet.class.getName());
 
+    private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
+
+    static final String OPT_OUTPUT_DIRECTORY = "-d";
+    static final String OPT_OUTPUT_FILENAME = "--output-filename";
+    static final String OPT_FIELD_PATTERN = "--output-filename";
+    static final String OPT_FIELD_NAME_REGEX = "--field-regex";
+    static final String OPT_OUTPUT_FORMAT = "-outputformat";
+    static final String OUTPUT_FORMAT_PROPERTIES = "properties";
+    static final String OUTPUT_FORMAT_JSON = "json";
+    static final IOCase DEFAULT_PATTERN_CASE_SENSITIVITY = IOCase.SENSITIVE;
     private static final String TAG_CFG_DESCRIPTION = "cfg.description";
     private static final String TAG_CFG_EXAMPLE = "cfg.example";
     private static final String TAG_CFG_DEFAULT_VALUE = "cfg.default";
 
-    final Set<String> actionableTags;
-    private Predicate<? super CharSequence> elementNamePredicate;
     private Reporter reporter;
     private final Optionage optionage;
 
+    /**
+     * Constructs an instance of the class.
+     */
     public ConfigDoclet() {
         this(Optionage.compose(CliOptionage.standard(), PropertyOptionage.system()));
     }
 
     ConfigDoclet(Optionage optionage) {
-        actionableTags = new HashSet<>();
         this.optionage = requireNonNull(optionage);
     }
 
     @Override
     public void init(Locale locale, Reporter reporter) {
-        actionableTags.add(TAG_CFG_DESCRIPTION);
-        actionableTags.add(TAG_CFG_EXAMPLE);
-        actionableTags.add(TAG_CFG_DEFAULT_VALUE);
-        elementNamePredicate = startsWithAny("PROP_", "PROPERTY_", "CFG_", "CONFIG_");
         this.reporter = reporter;
+    }
+
+    Set<String> buildActionableTagSet() {
+        return Set.of(TAG_CFG_DEFAULT_VALUE, TAG_CFG_DESCRIPTION, TAG_CFG_EXAMPLE);
+    }
+
+    static List<String> tokenizePatterns(String untokenizedPatterns) {
+        requireNonNull(untokenizedPatterns);
+        List<String> patterns = new ArrayList<>();
+        String[] patternTokens = untokenizedPatterns.split("[\\s,]+");
+        for (String token : patternTokens) {
+            token = token.trim();
+            if (!token.isEmpty()) {
+                patterns.add(token);
+            }
+        }
+        return Collections.unmodifiableList(patterns);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    static Predicate<? super CharSequence> constructPatternNamePredicate(String untokenizedPatterns, IOCase sensitivity) {
+        List<String> patterns = tokenizePatterns(untokenizedPatterns);
+        return new Predicate<>() {
+            @Override
+            public boolean test(CharSequence name) {
+                String nameStr = name.toString();
+                for (String wildcardPattern : patterns) {
+                    boolean match = FilenameUtils.wildcardMatch(nameStr, wildcardPattern, sensitivity);
+                    if (match) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            @Override
+            public String toString() {
+                return "PatternNamePredicate" + patterns.toString();
+            }
+        };
+    }
+
+    static Predicate<? super CharSequence> constructRegexNamePredicate(String fieldNameRegex) {
+        requireNonNull(fieldNameRegex);
+        return new Predicate<>() {
+
+            @Override
+            public boolean test(CharSequence name) {
+                String nameStr = name.toString();
+                return nameStr.matches(fieldNameRegex);
+            }
+
+            @Override
+            public String toString() {
+                return "RegexNamePredicate{" + fieldNameRegex + "}";
+            }
+        };
+    }
+
+    Predicate<? super CharSequence> constructElementNamePredicate() {
+        @Nullable String fieldNamePattern = optionage.getOptionString(OPT_FIELD_PATTERN, null);
+        @Nullable String fieldNameRegex = optionage.getOptionString(OPT_FIELD_NAME_REGEX, null);
+        if (fieldNamePattern != null && fieldNameRegex != null) {
+            reporter.print(Diagnostic.Kind.WARNING, "name predicate regex and pattern are both specified; only one will be used, and you don't know which");
+        }
+        if (fieldNamePattern != null) {
+            // TODO support setting that controls pattern case sensitivity
+            return constructPatternNamePredicate(fieldNamePattern, DEFAULT_PATTERN_CASE_SENSITIVITY);
+        }
+        if (fieldNameRegex != null) {
+            return constructRegexNamePredicate(fieldNameRegex);
+        }
+        return startsWithAny("PROP_", "PROPERTY_", "CFG_", "CONFIG_");
     }
 
     @SuppressWarnings("SameParameterValue")
     static Predicate<? super CharSequence> startsWithAny(String prefix1, String...others) {
         Set<String> set = Stream.concat(Stream.of(prefix1), Stream.of(others)).collect(Collectors.toSet());
-        return name -> {
-            String nameStr = name.toString();
-            return set.stream().anyMatch(nameStr::startsWith);
+        return new Predicate<>() {
+            @Override
+            public boolean test(CharSequence name) {
+                String nameStr = name.toString();
+                return set.stream().anyMatch(nameStr::startsWith);
+            }
+
+            @Override
+            public String toString() {
+                return "StartsWithAnyOf" + set.toString();
+            }
         };
     }
 
@@ -97,7 +186,7 @@ public class ConfigDoclet implements Doclet {
         return SourceVersion.RELEASE_6;
     }
 
-    private boolean isActionableEnclosedElement(Element element) {
+    private boolean isActionableEnclosedElement(Element element, Predicate<? super CharSequence> elementNamePredicate) {
         Name name = element.getSimpleName();
         return element.getKind() == ElementKind.FIELD
                 && element.getModifiers().contains(Modifier.STATIC)
@@ -106,11 +195,23 @@ public class ConfigDoclet implements Doclet {
                 && elementNamePredicate.test(name);
     }
 
+    private boolean isActionableEnclosingElement(Element element) {
+        ElementKind kind = element.getKind();
+        switch (kind) {
+            case CLASS:
+            case ENUM:
+            case INTERFACE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     @Override
     public boolean run(DocletEnvironment environment) {
         List<ConfigSetting> items = Collections.synchronizedList(new ArrayList<>());
         List<VariableElement> variableElements = environment.getIncludedElements().stream()
-                .filter(element -> element.getKind() == ElementKind.CLASS)
+                .filter(this::isActionableEnclosingElement)
                 .filter(TypeElement.class::isInstance)
                 .map(e -> (TypeElement) e)
                 .flatMap(classElement -> classElement.getEnclosedElements().stream())
@@ -118,15 +219,21 @@ public class ConfigDoclet implements Doclet {
                 .map(VariableElement.class::cast)
                 .collect(Collectors.toList());
         LinkResolver linkResolver = new CollectionLinkResolver(variableElements);
-        variableElements.stream().filter(this::isActionableEnclosedElement)
-                .forEach(enclosed -> {
+        Set<String> actionableTags = buildActionableTagSet();
+        Predicate<? super CharSequence> namePredicate = constructElementNamePredicate();
+        maybeDumpAllVariables(variableElements);
+        List<VariableElement> relevantFields = variableElements.stream()
+                .filter(element -> isActionableEnclosedElement(element, namePredicate))
+                .collect(Collectors.toList());
+        reporter.print(Diagnostic.Kind.NOTE, String.format("%d of %d variable elements are actionable (used name predicate %s)", relevantFields.size(), variableElements.size(), namePredicate));
+        relevantFields.forEach(enclosed -> {
                     log.log(defaultLevel, () -> String.format("enclosed: kind=%s; name=%s", enclosed.getKind(), enclosed.getSimpleName()));
                     DocCommentTree tree = environment.getDocTrees().getDocCommentTree(enclosed);
                     if (tree != null) {
                         Object constValue = enclosed.getConstantValue();
                         if (constValue != null) {
                             ConfigSetting.Builder b = prepareBuilder(enclosed, constValue, tree.getFullBody());
-                            CollectingScanner visitor = new CollectingScanner(enclosed, b, linkResolver);
+                            CollectingScanner visitor = new CollectingScanner(actionableTags, enclosed, b, linkResolver);
                             //noinspection RedundantCast
                             visitor.scan(tree, (Void) null);
                             ConfigSetting item = b.build();
@@ -138,6 +245,20 @@ public class ConfigDoclet implements Doclet {
                 });
         boolean retval = produceOutput(items);
         return retval;
+    }
+
+    private void maybeDumpAllVariables(List<VariableElement> variableElements) {
+        if (!Boolean.parseBoolean(System.getProperty("configdoclet.dumpAllVariableElements"))) {
+            return;
+        }
+        String elementsDebug = variableElements.stream()
+                .map(el -> new ToStringHelper(el)
+                        .add("kind", el.getKind())
+                        .add("modifiers", el.getModifiers())
+                        .add("name", el.getSimpleName().toString())
+                        .toString())
+                .collect(Collectors.joining(System.lineSeparator()));
+        reporter.print(Diagnostic.Kind.NOTE, String.format("debug variable elements:%n%s%n", elementsDebug));
     }
 
     static String qualifySignature(String signature, Element element) {
@@ -178,7 +299,6 @@ public class ConfigDoclet implements Doclet {
             default:
                 return false;
         }
-
     }
 
     private static String getPrefix(Element el) {
@@ -199,7 +319,7 @@ public class ConfigDoclet implements Doclet {
         }
     }
 
-    private class CollectionLinkResolver  implements LinkResolver {
+    private static class CollectionLinkResolver  implements LinkResolver {
 
         private final Collection<VariableElement> elements;
         private final Map<VariableElement, String> signatureCache;
@@ -242,7 +362,7 @@ public class ConfigDoclet implements Doclet {
                 .filter(TextTree.class::isInstance)
                 .map(tree -> (TextTree) tree)
                 .map(TextTree::getBody)
-                .collect(Collectors.joining(delimiter));
+                .collect(Collectors.joining(delimiter)).trim();
     }
 
     @Override
@@ -256,12 +376,11 @@ public class ConfigDoclet implements Doclet {
     }
 
     protected OutputFormatter getOutputFormatter() {
-        String format = optionage.getOptionString(OPT_OUTPUT_FORMAT, OUTPUT_PROPERTIES);
+        String format = optionage.getOptionString(OPT_OUTPUT_FORMAT, OUTPUT_FORMAT_PROPERTIES);
         switch (format) {
-            case OUTPUT_PROPERTIES:
+            case OUTPUT_FORMAT_PROPERTIES:
                 return new PropertiesOutputFormatter();
-            case OUTPUT_JSON:
-                reporter.print(Diagnostic.Kind.NOTE, String.format("java.class.path=%s", System.getProperty("java.class.path")));
+            case OUTPUT_FORMAT_JSON:
                 return new GsonOutputFormatter();
             default:
                 throw new IllegalArgumentException("invalid output format");
@@ -269,11 +388,8 @@ public class ConfigDoclet implements Doclet {
         }
     }
 
-    interface OutputFormatter {
-        void format(List<ConfigSetting> items, PrintWriter out) throws IOException;
-    }
-
     protected boolean produceOutput(List<ConfigSetting> items) {
+        reporter.print(Diagnostic.Kind.NOTE, String.format("writing help output on %d settings", items.size()));
         OutputFormatter formatter = getOutputFormatter();
         File outputFile = resolveOutputPath().toFile();
         if (!outputFile.getParentFile().isDirectory()) {
@@ -290,11 +406,6 @@ public class ConfigDoclet implements Doclet {
         return true;
     }
 
-    static final String OPT_OUTPUT_FORMAT = "-outputformat";
-
-    static final String OUTPUT_PROPERTIES = "properties";
-    static final String OUTPUT_JSON = "json";
-
     private interface LinkResolver {
         @Nullable
         VariableElement resolve(Element context, String signature);
@@ -307,7 +418,7 @@ public class ConfigDoclet implements Doclet {
         private final ConfigSetting.Builder itemBuilder;
         private final LinkResolver linkResolver;
 
-        public CollectingScanner(VariableElement element, ConfigSetting.Builder itemBuilder, LinkResolver linkResolver) {
+        public CollectingScanner(Set<String> actionableTags, VariableElement element, ConfigSetting.Builder itemBuilder, LinkResolver linkResolver) {
             super(actionableTags);
             this.element = element;
             this.linkResolver = linkResolver;
@@ -379,7 +490,7 @@ public class ConfigDoclet implements Doclet {
             if (stringified.startsWith(expectedPrefix)) {
                 outcome = StringUtils.removeStart(stringified, expectedPrefix);
             } else {
-                ToStringHelper h = new ToStringHelper(node.getClass());
+                ToStringHelper h = new ToStringHelper(node);
                 h.add("toString", node.toString());
                 outcome = h.toString();
 
@@ -389,49 +500,14 @@ public class ConfigDoclet implements Doclet {
 
     }
 
-    @SuppressWarnings("UnusedReturnValue")
-    private static class ToStringHelper {
-        private final String itemClass;
-        private final List<Object[]> properties;
-
-        public ToStringHelper(Class<?> itemClass) {
-            this(itemClass.getSimpleName());
-        }
-
-        public ToStringHelper(String itemClass) {
-            this.itemClass = itemClass;
-            properties = new ArrayList<>();
-        }
-
-        public ToStringHelper add(String name, Object value) {
-            properties.add(new Object[]{name, value});
-            return this;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder b = new StringBuilder(itemClass.length() + 2 + properties.size() * 4);
-            b.append(itemClass).append("{");
-            properties.forEach(property -> {
-                String name = (String) property[0];
-                Object value = property[1];
-                b.append(name).append('=').append(value);
-            });
-            b.append('}');
-            return b.toString();
-        }
-    }
-
-
     protected Path resolveOutputPath() {
         String defaultValue = new File(System.getProperty("user.dir")).getAbsolutePath();
-        String outputDirectory = optionage.getOptionString("-d", defaultValue);
+        String outputDirectory = optionage.getOptionString(OPT_OUTPUT_DIRECTORY, defaultValue);
         return new File(outputDirectory).toPath().resolve(getOutputFilename());
     }
 
     protected String getOutputFilename() {
-        // TODO get filename from options
-        return "cfg-doclet-output.txt";
+        return optionage.getOptionString(OPT_OUTPUT_FILENAME, DEFAULT_OUTPUT_FILENAME);
     }
 
 }

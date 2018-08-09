@@ -1,10 +1,9 @@
 package io.github.mike10004.configdoclet;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import io.github.mike10004.configdoclet.unit.SampleProject;
-import jdk.javadoc.doclet.Reporter;
 import org.apache.commons.io.output.TeeOutputStream;
-import org.easymock.EasyMock;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -19,11 +18,13 @@ import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,6 +32,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class ConfigDocletTest {
 
@@ -90,16 +92,33 @@ public class ConfigDocletTest {
 
     @Test
     public void defaultPath_properties() throws Exception  {
-        defaultPath(ConfigDoclet.OUTPUT_PROPERTIES);
+        execute(new String[]{"--output-format=" + ConfigDoclet.OUTPUT_FORMAT_PROPERTIES});
     }
 
     @Test
     public void defaultPath_json() throws Exception  {
-        String output = defaultPath(ConfigDoclet.OUTPUT_JSON);
+        String output = execute(new String[]{"--output-format=" + ConfigDoclet.OUTPUT_FORMAT_JSON});
         ConfigSetting[] items = new Gson().fromJson(output, ConfigSetting[].class);
         assertNotNull("deserialized", items);
+        Stream<String> required = Stream.of("app.server.attire", "app.choice.default");
+        required.forEach(settingKey -> {
+            assertTrue("setting " + settingKey, Arrays.stream(items).anyMatch(setting -> settingKey.equals(setting.key)));
+        });
         ConfigSetting[] expected = new Gson().fromJson(EXPECTED_DEFAULT_MODEL_ITEMS_JSON, ConfigSetting[].class);
-        assertArrayEquals("items", expected, items);
+        assertEquals("items", Set.of(expected), Set.of(items));
+    }
+
+    @Test
+    public void useFieldNameRegex() throws Exception {
+        String regex = "^WACKY_.*$";
+        String[] args = {
+                ConfigDoclet.OPT_OUTPUT_FORMAT, ConfigDoclet.OUTPUT_FORMAT_JSON,
+                ConfigDoclet.OPT_FIELD_NAME_REGEX + "=" + regex
+        };
+        String output = execute(args);
+        ConfigSetting[] settings = new Gson().fromJson(output, ConfigSetting[].class);
+        assertEquals("settings.length", 1, settings.length);
+        assertEquals("settings[0].key", "wacky.setting.name", settings[0].key);
     }
 
     private String buildClasspath() throws URISyntaxException {
@@ -109,22 +128,30 @@ public class ConfigDocletTest {
                 .collect(Collectors.joining(File.pathSeparator));
     }
 
-    private String defaultPath(String outputFormat) throws Exception  {
+    private String execute(String[] moreArgs) throws Exception  {
+        return execute(moreArgs, new String[]{"com.example"});
+    }
+
+    private String execute(String[] moreArgs, String[] packages) throws Exception  {
         File sourcepath = prepareProject().toPath().resolve("src/main/java").toFile();
         System.out.format("using sourcepath %s%n", sourcepath);
         checkState(sourcepath.isDirectory(), "not a directory: %s", sourcepath);
         String docletClasspath = buildClasspath();
         File outputDir = temporaryFolder.newFolder();
         System.out.format("docletClasspath = %s%n", docletClasspath);
-        int exitCode = invokeJavadocStart(new String[]{"-doclet", ConfigDoclet.class.getName(),
+        String[] commonArgs = {"-doclet", ConfigDoclet.class.getName(),
                 "-docletpath", docletClasspath,
                 "-charset", "UTF-8",
                 "-sourcepath", sourcepath.getAbsolutePath(),
                 "-d", outputDir.getAbsolutePath(),
-                "--output-format=" + outputFormat,
-                "com.example",
-        }).exitCode;
-        assertEquals("exit code", 0, exitCode);
+        };
+        List<String> allArgsList = new ArrayList<>();
+        allArgsList.addAll(Arrays.asList(commonArgs));
+        allArgsList.addAll(Arrays.asList(moreArgs));
+        allArgsList.addAll(Arrays.asList(packages));
+        String[] allArgs = allArgsList.toArray(new String[0]);
+        ToolResult result = invokeJavadocStart(allArgs);
+        assertEquals("exit code", 0, result.exitCode);
         Collection<File> filesInOutputDir = org.apache.commons.io.FileUtils.listFiles(outputDir, null, true);
         assertEquals("one file in output dir", 1, filesInOutputDir.size());
         File outputFile = filesInOutputDir.iterator().next();
@@ -134,6 +161,17 @@ public class ConfigDocletTest {
     }
 
     private static final String EXPECTED_DEFAULT_MODEL_ITEMS_JSON = "[\n" +
+            "  {\n" +
+            "    \"key\": \"app.choice.default\",\n" +
+            "    \"description\": \"Setting that specifies the default choice.\",\n" +
+            "    \"defaultValue\": \"STAY\",\n" +
+            "    \"exampleValues\": []\n" +
+            "  },\n" +
+            "  {\n" +
+            "    \"key\": \"app.server.attire\",\n" +
+            "    \"description\": \"Setting that determines what style attire the server will be wearing.\",\n" +
+            "    \"exampleValues\": []\n" +
+            "  },\n" +
             "  {\n" +
             "    \"key\": \"app.message\",\n" +
             "    \"description\": \"Message configuration property name. This second sentence contains some detail about the property.\",\n" +
@@ -177,8 +215,7 @@ public class ConfigDocletTest {
                             && field.getName().startsWith("TAG_");
                 }).collect(Collectors.toList());
         ConfigDoclet doclet = new ConfigDoclet();
-        doclet.init(Locale.getDefault(), EasyMock.createMock(Reporter.class));
-        Set<String> actionableTagsByDefault = doclet.actionableTags;
+        Set<String> actionableTagsByDefault = doclet.buildActionableTagSet();
         List<String> values = cfgConstants.stream().map(f -> {
             boolean acc = f.canAccess(null);
             try {
@@ -191,10 +228,39 @@ public class ConfigDocletTest {
             }
         }).collect(Collectors.toList());
         assertEquals("tags", new HashSet<>(values), new HashSet<>(actionableTagsByDefault));
+        org.apache.commons.io.FilenameUtils.class.getName();
     }
 
-//    @Test
-//    public void constructSignature() throws Exception {
-//        TypeElement classElement;
-//    }
+
+    @Test
+    public void constructRegexNamePredicate() {
+        String regex = "^APPCONFIGPROP_.*$";
+        Predicate<? super CharSequence> predicate = ConfigDoclet.constructRegexNamePredicate(regex);
+        ImmutableMap.<String, Boolean>builder()
+                .put("APPCONFIGPROP_BROWSER_EXECUTABLE_PATH_CHROME", true)
+                .put("SYSPROP_HELLO", false)
+                .put("CFG_BOOYAH", false)
+                .build()
+                .forEach((name, expected) -> {
+                    boolean actual = predicate.test(name);
+                    assertEquals("evaluation on " + name, expected, actual);
+                });
+    }
+
+    @Test
+    public void constructPatternNamePredicate() {
+        String patternsToken = "APPCONFIGPROP_*,CFG_* FOO_?AR";
+        Predicate<? super CharSequence> predicate = ConfigDoclet.constructPatternNamePredicate(patternsToken, ConfigDoclet.DEFAULT_PATTERN_CASE_SENSITIVITY);
+        ImmutableMap.<String, Boolean>builder()
+                .put("APPCONFIGPROP_BROWSER_EXECUTABLE_PATH_CHROME", true)
+                .put("SYSPROP_HELLO", false)
+                .put("CFG_BOOYAH", true)
+                .put("FOO_BAR", true)
+                .put("FOO_CHAR", false)
+                .build()
+                .forEach((name, expected) -> {
+                    boolean actual = predicate.test(name);
+                    assertEquals("evaluation on " + name, expected, actual);
+                });
+    }
 }

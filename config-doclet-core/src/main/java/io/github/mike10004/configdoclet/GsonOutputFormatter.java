@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
-class GsonOutputFormatter implements ConfigDoclet.OutputFormatter {
+class GsonOutputFormatter implements OutputFormatter {
 
     @Override
     public void format(List<ConfigSetting> items, PrintWriter out) throws IOException {

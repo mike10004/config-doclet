@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
-class PropertiesOutputFormatter implements ConfigDoclet.OutputFormatter {
+class PropertiesOutputFormatter implements OutputFormatter {
 
     private static final String COMMENT_CHAR = "#";
 
@@ -36,6 +36,6 @@ class PropertiesOutputFormatter implements ConfigDoclet.OutputFormatter {
             out.format("%s %s%n", COMMENT_CHAR, item.description);
         }
         String value = getAssignedValue(item);
-        out.format("%s %s = %s%n", COMMENT_CHAR, item.key, value);
+        out.format("%s%s = %s%n", COMMENT_CHAR, item.key, value);
     }
 }

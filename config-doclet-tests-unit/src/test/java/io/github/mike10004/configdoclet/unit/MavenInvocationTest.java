@@ -66,12 +66,14 @@ public class MavenInvocationTest {
             exception.printStackTrace(System.out);
         }
         assertEquals("exit code", 0, result.getExitCode());
-        File outputFile = projectDir.resolve("target/site/apidocs/config-help/cfg-doclet-output.txt").toFile();
+        File outputFile = projectDir.resolve("target/site/apidocs/config-help").resolve(DEFAULT_OUTPUT_FILENAME).toFile();
         assertTrue("exists: " + outputFile, outputFile.isFile());
         String content = Files.asCharSource(outputFile, UTF_8).read();
         System.out.println(content);
         assertFalse("content nonempty", content.trim().isEmpty());
     }
+
+    private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
 
     private static File resolveMavenHome() throws IOException {
         for (Supplier<String> supplier : getMavenHomePathnameSuppliers()) {

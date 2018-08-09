@@ -3,40 +3,33 @@ package io.github.mike10004.configdoclet;
 import jdk.javadoc.doclet.Doclet;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
-class BasicOption implements Doclet.Option, Comparable<BasicOption> {
+class BasicOption implements Doclet.Option {
 
-    private final String[] names;
+    private final List<String> names;
     private final Processor processor;
     private final String parameters;
     private final String description;
     private final int argCount;
+    private final Kind kind;
 
-//    public BasicOption(String name, int argCount) {
-//        this.names = name.trim().split("\\s+");
-//        String desc =
-//        if (desc.isEmpty()) {
-//            this.description = "<MISSING KEY>";
-//            this.parameters = "<MISSING KEY>";
-//        } else {
-//            this.description = desc;
-//            this.parameters = getOptionsMessage(resources, keyBase + ".parameters");
-//        }
-//        this.argCount = argCount;
-//    }
-
-
-    public BasicOption(String[] names, Processor processor, String parameters, String description, int argCount) {
+    public BasicOption(List<String> names, Processor processor, String parameters, String description, int argCount, Kind kind) {
         this.processor = requireNonNull(processor, "processor");
-        this.names = names;
         requireNonNull(names, "names");
-        if (names.length < 1) {
+        this.names = Collections.unmodifiableList(names);
+        if (names.isEmpty()) {
             throw new IllegalArgumentException("names array must be nonempty");
+        }
+        if (names.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException("all names must be non-null");
+        }
+        if (names.stream().anyMatch(String::isEmpty)) {
+            throw new IllegalArgumentException("all names must be nonempty");
         }
         this.parameters = parameters;
         this.description = requireNonNull(description, "description");
@@ -44,6 +37,7 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
         if (argCount < 0) {
             throw new IllegalArgumentException("argcount >= 0 is required: " + argCount);
         }
+        this.kind = requireNonNull(kind);
     }
 
     @Override
@@ -57,13 +51,13 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
     }
 
     @Override
-    public Doclet.Option.Kind getKind() {
-        return Doclet.Option.Kind.STANDARD;
+    public Kind getKind() {
+        return kind;
     }
 
     @Override
     public List<String> getNames() {
-        return Arrays.asList(names);
+        return names;
     }
 
     @Override
@@ -72,13 +66,18 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
     }
 
     @Override
-    public String toString() {
-        return Arrays.toString(names);
+    public int getArgumentCount() {
+        return argCount;
     }
 
     @Override
-    public int getArgumentCount() {
-        return argCount;
+    public String toString() {
+        return new ToStringHelper(this)
+                .add("names", names)
+                .add("description", StringUtils.abbreviate(description, 16))
+                .add("argCount", argCount)
+                .add("metavars", parameters)
+                .toString();
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -89,11 +88,13 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
         return original;
     }
 
+    private static final String OPTION_INDICATOR = "-";
+
     public static boolean isConflicting(Doclet.Option me, Doclet.Option option) {
         for (String myName : me.getNames()) {
-            myName = trimLeading(myName, "-");
+            myName = trimLeading(myName, OPTION_INDICATOR);
             for (String otherName : option.getNames()) {
-                otherName = trimLeading(otherName, "-");
+                otherName = trimLeading(otherName, OPTION_INDICATOR);
                 if (myName.equalsIgnoreCase(otherName)) {
                     return true;
                 }
@@ -102,33 +103,39 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
         return false;
     }
 
-    @Override
-    public int compareTo(BasicOption that) {
-        return this.getNames().get(0).compareTo(that.getNames().get(0));
-    }
-
+    /**
+     * Interface for a service class that will handle the {@link Doclet.Option#process(String, List)} method.
+     */
     public interface Processor {
         boolean process(String option, List<String> arguments);
     }
 
+    /**
+     * Builder of option instances.
+     */
     public static class Builder {
         private final List<String> names;
         private final Processor processor;
         private String parameters;
         private String description;
         private int argCount;
+        private Kind kind;
 
-        public Builder(String name, Processor processor) {
+        private Builder(String name, Processor processor) {
             requireNonNull(name, "name");
             this.names = new ArrayList<>();
             this.names.add(name);
             this.processor = requireNonNull(processor, "processor");
             parameters = null;
-            description = "set " + name;
+            description = "set " + trimLeading(name, OPTION_INDICATOR);
+            kind = Kind.STANDARD;
         }
 
         public Builder alias(String name) {
-            requireNonNull(name);
+            requireNonNull(name, "name");
+            if (name.isEmpty()) {
+                throw new IllegalArgumentException("name must be nonempty");
+            }
             this.names.add(name);
             return this;
         }
@@ -154,10 +161,14 @@ class BasicOption implements Doclet.Option, Comparable<BasicOption> {
         }
 
         public BasicOption build() {
-            String[] namesArray = names.toArray(new String[0]);
-            return new BasicOption(namesArray, processor, parameters, description, argCount);
+            return new BasicOption(names, processor, parameters, description, argCount, kind);
         }
 
+        /**
+         * Sets argument count to one and assigns the parameters string.
+         * @param metavar the parameters description, same as the arg to {@link #parameters(String)}
+         * @return this builder instance
+         */
         public Builder arg(String metavar) {
             argCount(1);
             parameters(metavar);

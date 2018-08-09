@@ -24,7 +24,7 @@ public class App {
      * @cfg.example stderr
      * @cfg.example null
      */
-    public static final String CFG_DESTIONATION = "app.destination";
+    public static final String CFG_DESTINATION = "app.destination";
 
     /**
      * The default message.
@@ -37,6 +37,10 @@ public class App {
      */
     public static final String CFG_NUM_REPS = "app.numRepetitions";
 
+    /**
+     * Wacky setting to demonstrate restricting which fields are included.
+     */
+    private static final String WACKY_SETTING = "wacky.setting.name";
 
     private static final int DEFAULT_NUM_REPETITIONS = 1;
 
