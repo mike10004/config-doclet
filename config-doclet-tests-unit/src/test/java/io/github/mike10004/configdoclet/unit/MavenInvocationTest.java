@@ -11,6 +11,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -79,41 +81,109 @@ public class MavenInvocationTest {
     private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
 
     private static File resolveMavenHome() throws IOException {
-        for (Supplier<String> supplier : getMavenHomePathnameSuppliers()) {
-            String dir = supplier.get();
+        for (MavenHomeSupplier supplier : getMavenHomePathnameSuppliers()) {
+            String dir = supplier.getMavenHomePathname();
             if (dir != null) {
+                System.out.format("maven home resolver \"%s\" returned %s%n", supplier.describe(), dir);
                 File dirPathname = new File(dir);
                 if (dirPathname.isDirectory()) {
-                    File mvnExecutable = new File(dirPathname, "bin/mvn");
-                    if (!mvnExecutable.isFile()) {
-                        System.err.format("resolved maven home at %s but executable %s does not exist%n", dirPathname.getAbsolutePath(), mvnExecutable.getAbsolutePath());
-                    }
+                    System.out.format("maven home resolver: using pathname at which directory exists: %s%n", dirPathname);
+                    return dirPathname;
                 }
-                return dirPathname;
             }
         }
         throw new IOException("maven home directory not found");
     }
 
-    private static Iterable<Supplier<String>> getMavenHomePathnameSuppliers() {
+    private interface MavenHomeSupplier {
+
+        String describe();
+
+        @Nullable
+        String getMavenHomePathname();
+
+        static MavenHomeSupplier of(String description, Supplier<String> supplier) {
+            return new MavenHomeSupplier() {
+                @Override
+                public String describe() {
+                    return description;
+                }
+
+                @Override
+                public String getMavenHomePathname() {
+                    return supplier.get();
+                }
+            };
+        }
+    }
+
+    static class MavenOnPathResolver implements MavenHomeSupplier {
+
+        private final Function<String, String> envValueMap;
+
+        public MavenOnPathResolver(Function<String, String> envValueMap) {
+            this.envValueMap = envValueMap;
+        }
+
+        public static MavenOnPathResolver systemPath() {
+            return new MavenOnPathResolver(System::getenv);
+        }
+
+        @Override
+        public String describe() {
+            return getClass().getSimpleName();
+        }
+
+        protected Stream<String> streamExecutableNames() {
+            return Stream.of("mvn", "mvn.cmd");
+        }
+
+        protected boolean isValidExecutable(File executable) {
+            return executable.isFile();
+        }
+
+        @Nullable
+        protected File getMavenHomeFromExecutable(File executable) {
+            try {
+                executable = executable.getCanonicalFile();
+            } catch (IOException e) {
+                System.err.format("could not resolve symbolic link reference: %s%n", e.toString());
+            }
+            File binDir = executable.getParentFile();
+            if (binDir != null) {
+                return binDir.getParentFile();
+            }
+            return null;
+        }
+
+        protected boolean isValidMavenHome(String absolutePath) {
+            return absolutePath.toLowerCase().contains("maven");
+        }
+
+        @Nullable
+        @Override
+        public String getMavenHomePathname() {
+            String pathValue = envValueMap.apply("PATH");
+            String[] pathDirs = pathValue.split(Pattern.quote(File.pathSeparator));
+            return Arrays.stream(pathDirs)
+                    .flatMap(dir -> {
+                        return streamExecutableNames().map(binname -> new File(dir, binname));
+                    }).filter(this::isValidExecutable)
+                    .map(this::getMavenHomeFromExecutable)
+                    .filter(Objects::nonNull)
+                    .map(File::getAbsolutePath)
+                    .filter(this::isValidMavenHome)
+                    .findFirst().orElse(null);
+        }
+    }
+
+    private static Iterable<MavenHomeSupplier> getMavenHomePathnameSuppliers() {
         return java.util.List.of(
-                () -> System.getProperty("configdoclet.build.maven.home"),
-                () -> System.getenv("M2_HOME"),
-                () -> {
-                    String[] pathDirs = System.getenv("PATH").split(Pattern.quote(File.pathSeparator));
-                    return Arrays.stream(pathDirs)
-                            .flatMap(dir -> {
-                                return Stream.of("mvn", "mvnw.bat").map(binname -> new File(dir, binname));
-                            }).filter(File::isFile)
-                            .map(File::getParentFile) // to Maven home/bin dir
-                            .filter(Objects::nonNull)
-                            .map(File::getParentFile) // to Maven home dir
-                            .filter(Objects::nonNull)
-                            .map(File::getAbsolutePath)
-                            .findFirst().orElse(null);
-                },
-                () -> "/usr/local/share/maven",
-                () -> "/usr/share/maven"
+                MavenHomeSupplier.of("system property", () -> System.getProperty("configdoclet.build.maven.home")),
+                MavenHomeSupplier.of("env var M2_HOME", () -> System.getenv("M2_HOME")),
+                MavenOnPathResolver.systemPath(),
+                MavenHomeSupplier.of("looking in /usr/local/share/maven", () -> "/usr/local/share/maven"),
+                MavenHomeSupplier.of("looking in /usr/share/maven", () -> "/usr/share/maven")
 
         );
     }
