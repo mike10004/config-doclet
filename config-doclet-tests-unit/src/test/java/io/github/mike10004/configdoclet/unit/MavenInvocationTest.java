@@ -66,7 +66,10 @@ public class MavenInvocationTest {
             exception.printStackTrace(System.out);
         }
         assertEquals("exit code", 0, result.getExitCode());
-        File outputFile = projectDir.resolve("target/site/apidocs/config-help").resolve(DEFAULT_OUTPUT_FILENAME).toFile();
+        File outputFile = projectDir.resolve("target")
+                .resolve("site/apidocs") // maven-javadoc-plugin default
+                .resolve("config-help")
+                .resolve(DEFAULT_OUTPUT_FILENAME).toFile();
         assertTrue("exists: " + outputFile, outputFile.isFile());
         String content = Files.asCharSource(outputFile, UTF_8).read();
         System.out.println(content);
