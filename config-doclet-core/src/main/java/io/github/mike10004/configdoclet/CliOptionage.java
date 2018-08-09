@@ -84,7 +84,11 @@ class CliOptionage implements Optionage {
                 BasicOption.builder(ConfigDoclet.OPT_FIELD_NAME_PATTERN, processor)
                         .arg("<patterns>")
                         .description("restrict documentable fields to those whose name matches a wildcard pattern (using '*' and '?'); delimit multiple patterns with commas or whitespace")
-                        .build()
+                        .build(),
+                BasicOption.builder(ConfigDoclet.OPT_APPEND_SETTINGS, processor)
+                        .arg("<jsonfile>")
+                        .description("append the settings parsed from json output of this doclet in specified file")
+                        .build(),
         }));
     }
 

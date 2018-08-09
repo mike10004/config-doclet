@@ -1,5 +1,6 @@
 package io.github.mike10004.configdoclet;
 
+import com.google.gson.Gson;
 import com.sun.source.doctree.BlockTagTree;
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
@@ -20,14 +21,18 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +65,7 @@ public class ConfigDoclet implements Doclet {
     static final String OPT_FIELD_NAME_PATTERN = "--field-pattern";
     static final String OPT_FIELD_NAME_REGEX = "--field-regex";
     static final String OPT_OUTPUT_FORMAT = "-outputformat";
+    static final String OPT_APPEND_SETTINGS = "--append-settings";
     static final String OUTPUT_FORMAT_PROPERTIES = "properties";
     static final String OUTPUT_FORMAT_JSON = "json";
     static final IOCase DEFAULT_PATTERN_CASE_SENSITIVITY = IOCase.SENSITIVE;
@@ -247,8 +253,39 @@ public class ConfigDoclet implements Doclet {
                         reporter.print(Diagnostic.Kind.NOTE, String.format("element does not have constant value: %s", enclosed.getSimpleName()));
                     }
                 });
+        List<ConfigSetting> others = appendOthers(optionage.getOptionString(OPT_APPEND_SETTINGS, null));
+        items.addAll(others);
         boolean retval = produceOutput(items);
         return retval;
+    }
+
+    private Charset getAppendOthersCharset() {
+        // TODO support option to specify this
+        return StandardCharsets.UTF_8;
+    }
+
+    protected List<ConfigSetting> appendOthers(@Nullable String jsonPathnames) {
+        if (jsonPathnames == null) {
+            return Collections.emptyList();
+        }
+        String[] pathnames = jsonPathnames.split(File.pathSeparator);
+        List<ConfigSetting> others = new ArrayList<>();
+        for (String pathname : pathnames) {
+            if (!pathname.isEmpty()) {
+                File jsonFile = new File(pathname);
+                ConfigSetting[] some;
+                try (Reader reader = new InputStreamReader(new FileInputStream(jsonFile), getAppendOthersCharset())) {
+                    some = new Gson().fromJson(reader, ConfigSetting[].class);
+                } catch (IOException e) {
+                    // TODO support setting to suppress this exception
+                    throw new RuntimeException(e);
+                }
+                if (some != null) {
+                    others.addAll(Arrays.asList(some));
+                }
+            }
+        }
+        return others;
     }
 
     private void maybeDumpAllVariables(List<VariableElement> variableElements) {
@@ -392,6 +429,7 @@ public class ConfigDoclet implements Doclet {
 
     protected boolean produceOutput(List<ConfigSetting> items) {
         reporter.print(Diagnostic.Kind.NOTE, String.format("writing help output on %d settings", items.size()));
+        items = items.stream().sorted(ConfigSetting.comparatorByKey()).collect(Collectors.toList());
         OutputFormatter formatter = getOutputFormatter();
         File outputFile = resolveOutputPath().toFile();
         if (!outputFile.getParentFile().isDirectory()) {

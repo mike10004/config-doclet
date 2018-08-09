@@ -2,6 +2,7 @@ package io.github.mike10004.configdoclet;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -116,5 +117,9 @@ final class ConfigSetting {
                 ", defaultValue='" + defaultValue + '\'' +
                 ", exampleValues.size=" + exampleValues.size() +
                 '}';
+    }
+
+    public static Comparator<ConfigSetting> comparatorByKey() {
+        return Comparator.comparing(setting -> setting.key);
     }
 }
