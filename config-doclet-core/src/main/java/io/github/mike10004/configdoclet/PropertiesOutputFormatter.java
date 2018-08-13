@@ -30,13 +30,33 @@ class PropertiesOutputFormatter implements OutputFormatter {
         return value;
     }
 
-    @SuppressWarnings("RedundantThrows")
-    void format(ConfigSetting item, PrintWriter out) throws IOException {
-        if (item.description != null) {
-            StringEscaping.writePropertyComment(item.description, out);
+    private static String trimLeadingFrom(String str, char ch) {
+        for (int i = 0; i < str.length(); i++) {
+            if (str.charAt(i) != ch) {
+                return str.substring(i);
+            }
         }
-        String value = getAssignedValue(item);
-        String key = StringEscaping.escapePropertyKey(item.key);
+        return "";
+    }
+
+    protected String formatExample(ConfigSetting.ExampleValue example) {
+        return String.format(" Example: %s", example.value); // TODO include example value description
+    }
+
+    @SuppressWarnings("RedundantThrows")
+    void format(ConfigSetting setting, PrintWriter out) throws IOException {
+        if (setting.description != null) {
+            String desc = " " + trimLeadingFrom(setting.description, ' ');
+            StringEscaping.writePropertyComment(desc, out);
+        }
+        if (!setting.exampleValues.isEmpty()) {
+            for (ConfigSetting.ExampleValue example : setting.exampleValues) {
+                String exampleStr = formatExample(example);
+                StringEscaping.writePropertyComment(exampleStr, out);
+            }
+        }
+        String value = getAssignedValue(setting);
+        String key = StringEscaping.escapePropertyKey(setting.key);
         value = StringEscaping.escapePropertyValue(value);
         StringEscaping.writePropertyComment(String.format("%s = %s", key, value), out);
     }
