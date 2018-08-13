@@ -1,11 +1,12 @@
 package io.github.mike10004.configdoclet;
 
 import com.sun.source.doctree.DocTree;
-import com.sun.source.doctree.LinkTree;
+import com.sun.source.doctree.InlineTagTree;
+import com.sun.source.doctree.LiteralTree;
 import com.sun.source.doctree.TextTree;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 class BasicTextCommentRenderer implements CommentRenderer {
@@ -22,17 +23,32 @@ class BasicTextCommentRenderer implements CommentRenderer {
     }
 
     protected boolean isRenderable(DocTree tree) {
-        return tree instanceof TextTree;
+        return tree instanceof TextTree
+                || isInlineCode(tree);
     }
 
     protected String renderOne(DocTree tree) {
         if (tree instanceof TextTree) {
             return ((TextTree)tree).getBody();
         }
+        if (isInlineCode(tree)) {
+             TextTree body = ((LiteralTree) tree).getBody();
+             return body.getBody();
+        }
         return renderUnsupported(tree);
     }
 
-    String renderUnsupported(DocTree tree) {
+    private boolean isInlineCode(DocTree tree) {
+        if (tree instanceof LiteralTree) {
+            String tagName = ((InlineTagTree) tree).getTagName();
+            if ("code".equalsIgnoreCase(tagName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected String renderUnsupported(DocTree tree) {
         return "";
     }
 

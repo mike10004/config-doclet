@@ -50,5 +50,14 @@
     "key": "app.complexDescription",
     "description": "Setting whose description is a bit long and complex. How long, you ask? Well, long\n enough that it spans multiple lines and has a blank line, below which is a new\n paragraph. This of course means that it includes some HTML markup.\n\n  That markup is even more complex, because of the following\n  \n  there is an unordered list \n  there are multiple list items\n  one of those even has a  link (app.undocumentedSetting)  to another field\n  and those links come in  #WACKY_SETTING (wacky.setting.name)  various forms \n  \n\n On top of all that, at the end of the comment, there is a concluding line.",
     "exampleValues": []
+  },
+  {
+    "key": "app.important.pathname",
+    "description": "Setting specifying a pathname. This demonstrates rendering of  special text  in\n inline code spans.",
+    "exampleValues": [
+      {
+        "value": "/home/elizabeth/Documents/cool.txt"
+      }
+    ]
   }
 ]

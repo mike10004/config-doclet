@@ -47,6 +47,13 @@ public class App {
     private static final String CFG_UNDOCUMENTED = "app.undocumentedSetting";
 
     /**
+     * Setting specifying a pathname. This demonstrates rendering of {@code special text} in
+     * inline code spans.
+     * @cfg.example {@code /home/elizabeth/Documents/cool.txt}
+     */
+    private static final String CFG_USING_CODE = "app.important.pathname";
+
+    /**
      * Setting whose description is a bit long and complex. How long, you ask? Well, long
      * enough that it spans multiple lines and has a blank line, below which is a new
      * paragraph. This of course means that it includes some HTML markup.

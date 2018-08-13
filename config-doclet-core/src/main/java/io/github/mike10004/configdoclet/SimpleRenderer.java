@@ -2,10 +2,14 @@ package io.github.mike10004.configdoclet;
 
 import com.sun.source.doctree.BlockTagTree;
 import com.sun.source.doctree.DocTree;
+import com.sun.source.doctree.UnknownBlockTagTree;
 
 import java.util.Collection;
 
 class SimpleRenderer implements CommentRenderer {
+
+    public SimpleRenderer() {
+    }
 
     @Override
     public String render(Collection<? extends DocTree> docTrees) {
@@ -14,11 +18,16 @@ class SimpleRenderer implements CommentRenderer {
             String outcome;
             if (node instanceof BlockTagTree) {
                 String stringified = node.toString();
-                String expectedPrefix = "@" + ((BlockTagTree)node).getTagName();
-                if (stringified.startsWith(expectedPrefix)) {
-                    outcome = StringUtils.removeStart(stringified, expectedPrefix);
+                String tagName = ((BlockTagTree)node).getTagName();
+                if (ConfigDoclet.TAG_CFG_EXAMPLE.equals(tagName)) {
+                    outcome = CommentRenderer.concatenateText(((UnknownBlockTagTree)node).getContent());
                 } else {
-                    outcome = buildReallySimply(node);
+                    String expectedPrefix = "@" + tagName;
+                    if (stringified.startsWith(expectedPrefix)) {
+                        outcome = StringUtils.removeStart(stringified, expectedPrefix);
+                    } else {
+                        outcome = buildReallySimply(node);
+                    }
                 }
             } else {
                 outcome = buildReallySimply(node);

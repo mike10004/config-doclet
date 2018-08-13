@@ -64,9 +64,9 @@ public class ConfigDoclet implements Doclet {
     static final String OUTPUT_FORMAT_PROPERTIES = "properties";
     static final String OUTPUT_FORMAT_JSON = "json";
     static final IOCase DEFAULT_PATTERN_CASE_SENSITIVITY = IOCase.SENSITIVE;
-    private static final String TAG_CFG_DESCRIPTION = "cfg.description";
-    private static final String TAG_CFG_EXAMPLE = "cfg.example";
-    private static final String TAG_CFG_DEFAULT_VALUE = "cfg.default";
+    static final String TAG_CFG_DESCRIPTION = "cfg.description";
+    static final String TAG_CFG_EXAMPLE = "cfg.example";
+    static final String TAG_CFG_DEFAULT_VALUE = "cfg.default";
 
     private Reporter reporter;
     private final Optionage optionage;

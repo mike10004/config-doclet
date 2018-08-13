@@ -147,6 +147,15 @@ public class ConfigDocletTest {
         testDefaultPathForSingleSetting("CFG_MESSAGE", expected);
     }
 
+    @Test
+    public void defaultPath_inlineCode() throws Exception {
+        ConfigSetting expected = ConfigSetting.builder("app.important.pathname")
+                .description("Setting specifying a pathname. This demonstrates rendering of  special text  in\n inline code spans.")
+                .exampleValue("/home/elizabeth/Documents/cool.txt")
+                .build();
+        testDefaultPathForSingleSetting("CFG_USING_CODE", expected);
+    }
+
     @SuppressWarnings("UnusedReturnValue")
     private ConfigSetting testDefaultPathForSingleSetting(String settingKey, ConfigSetting expected) throws Exception {
         String[] args = {
@@ -160,7 +169,7 @@ public class ConfigDocletTest {
         if (!expected.equals(actual)) {
             System.err.format("expected:%n%n%s%n%nactual:%n%n%s%n%n", expected.toStringWithExamples(), actual.toStringWithExamples());
         }
-        assertEquals("app.destination", expected, settings[0]);
+        assertEquals("expected setting", expected, settings[0]);
         return settings[0];
     }
 
