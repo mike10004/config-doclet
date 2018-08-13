@@ -20,7 +20,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,7 +33,6 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -109,8 +107,8 @@ public class ConfigDocletTest {
         required.forEach(settingKey -> {
             assertTrue("setting " + settingKey, Arrays.stream(items).anyMatch(setting -> settingKey.equals(setting.key)));
         });
-        ConfigSetting[] expected = new Gson().fromJson(EXPECTED_DEFAULT_MODEL_ITEMS_JSON, ConfigSetting[].class);
-        assertEquals("items", Set.of(expected), Set.of(items));
+        Set<ConfigSetting> expected = loadExpectedSettingsDefault();
+        assertEquals("items", (expected), Set.of(items));
     }
 
     @Test
@@ -140,10 +138,6 @@ public class ConfigDocletTest {
     }
 
     private String buildClasspath() throws URISyntaxException, IOException {
-//        return Stream.of(new File(Tests.config().get("project.build.outputDirectory")),
-//                new File(getClass().getResource("/gson-2.8.5.jar").toURI()))
-//                .map(File::getAbsolutePath)
-//                .collect(Collectors.joining(File.pathSeparator));
         CharSource cs = Resources.asCharSource(getClass().getResource("/dependencies.txt"), UTF_8);
         List<MavenRepositoryItem> repoItems;
         try (Reader reader = cs.openStream()) {
@@ -192,55 +186,11 @@ public class ConfigDocletTest {
         return output;
     }
 
-    private static final String EXPECTED_DEFAULT_MODEL_ITEMS_JSON = "[\n" +
-            "  {\n" +
-            "    \"key\": \"app.message\",\n" +
-            "    \"description\": \"Message configuration property name. This second sentence contains some detail about the property.\",\n" +
-            "    \"defaultValue\": \"Hello, world!\",\n" +
-            "    \"exampleValues\": [\n" +
-            "      {\n" +
-            "        \"value\": \" Looking good, Billy Ray!\"\n" +
-            "      },\n" +
-            "      {\n" +
-            "        \"value\": \" Feeling good, Louis!\"\n" +
-            "      }\n" +
-            "    ]\n" +
-            "  },\n" +
-            "  {\n" +
-            "    \"key\": \"app.destination\",\n" +
-            "    \"description\": \" this description overrides the sentences\",\n" +
-            "    \"defaultValue\": \"stdout\",\n" +
-            "    \"exampleValues\": [\n" +
-            "      {\n" +
-            "        \"value\": \" stderr\"\n" +
-            "      },\n" +
-            "      {\n" +
-            "        \"value\": \" null\"\n" +
-            "      }\n" +
-            "    ]\n" +
-            "  },\n" +
-            "  {\n" +
-            "    \"key\": \"app.numRepetitions\",\n" +
-            "    \"description\": \"Setting specifying number of repetitions. A value of N means that the message is printed N times.\",\n" +
-            "    \"defaultValue\": \"1\",\n" +
-            "    \"exampleValues\": []\n" +
-            "  },\n" +
-            "  {\n" +
-            "    \"key\": \"app.undocumentedSetting\",\n" +
-            "    \"exampleValues\": []\n" +
-            "  },\n" +
-            "  {\n" +
-            "    \"key\": \"app.server.attire\",\n" +
-            "    \"description\": \"Setting that determines what style attire the server will be wearing.\",\n" +
-            "    \"exampleValues\": []\n" +
-            "  },\n" +
-            "  {\n" +
-            "    \"key\": \"app.choice.default\",\n" +
-            "    \"description\": \"Setting that specifies the default choice.\",\n" +
-            "    \"defaultValue\": \"STAY\",\n" +
-            "    \"exampleValues\": []\n" +
-            "  }\n" +
-            "]";
+    private Set<ConfigSetting> loadExpectedSettingsDefault() throws IOException {
+        String json = Resources.toString(getClass().getResource("/expected-settings-default.json"), UTF_8);
+        ConfigSetting[] settings = new Gson().fromJson(json, ConfigSetting[].class);
+        return Set.of(settings);
+    }
 
     @Test
     public void numActionableTags() {

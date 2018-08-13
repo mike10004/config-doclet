@@ -46,6 +46,23 @@ public class App {
 
     private static final String CFG_UNDOCUMENTED = "app.undocumentedSetting";
 
+    /**
+     * Setting whose description is a bit long and complex. How long, you ask? Well, long
+     * enough that it spans multiple lines and has a blank line, below which is a new
+     * paragraph. This of course means that it includes some HTML markup.
+     *
+     * <p>That markup is even more complex, because of the following
+     * <ul>
+     * <li>there is an unordered list</li>
+     * <li>there are multiple list items
+     * <li>one of those even has a {@link #CFG_UNDOCUMENTED link} to another field
+     * <li>and those links come in {@link #WACKY_SETTING} various forms</li>
+     * </ul>
+     *
+     * On top of all that, at the end of the comment, there is a concluding line.
+     */
+    private static final String CFG_COMPLEX_DESCRIPTION = "app.complexDescription";
+
     private java.io.PrintStream output;
 
     /**
