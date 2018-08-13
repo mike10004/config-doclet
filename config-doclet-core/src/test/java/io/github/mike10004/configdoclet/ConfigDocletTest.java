@@ -6,10 +6,12 @@ import com.google.common.io.Resources;
 import com.google.gson.Gson;
 import io.github.mike10004.configdoclet.unit.SampleProject;
 import org.apache.commons.io.output.TeeOutputStream;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +25,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -101,14 +104,64 @@ public class ConfigDocletTest {
     @Test
     public void defaultPath_json() throws Exception  {
         String output = execute(new String[]{"--output-format=" + ConfigDoclet.OUTPUT_FORMAT_JSON});
-        ConfigSetting[] items = new Gson().fromJson(output, ConfigSetting[].class);
+        List<ConfigSetting> items = Arrays.asList(new Gson().fromJson(output, ConfigSetting[].class));
         assertNotNull("deserialized", items);
         Stream<String> required = Stream.of("app.server.attire", "app.choice.default", "app.undocumentedSetting");
         required.forEach(settingKey -> {
-            assertTrue("setting " + settingKey, Arrays.stream(items).anyMatch(setting -> settingKey.equals(setting.key)));
+            assertTrue("setting " + settingKey, items.stream().anyMatch(setting -> settingKey.equals(setting.key)));
         });
+        List<Pair<ConfigSetting, ConfigSetting>> missing = new ArrayList<>();
         Set<ConfigSetting> expected = loadExpectedSettingsDefault();
-        assertEquals("items", (expected), Set.of(items));
+        expected.forEach(setting -> {
+            if (!items.contains(setting)) {
+                @Nullable ConfigSetting closest = items.stream().filter(present -> setting.key.equals(present.key)).findAny().orElse(null);
+                missing.add(Pair.of(setting, closest));
+            }
+        });
+        if (!missing.isEmpty()) {
+            System.out.format("could not match expected settings %s%n", missing.stream().map(Pair::getLeft).map(s -> s.key).collect(Collectors.toList()));
+        }
+        assertEquals("expected no missing items", Collections.emptyList(), missing);
+        assertEquals("expected settings size", expected.size(), items.size());
+    }
+
+    @Test
+    public void defaultPath_restricted_appDestination() throws Exception {
+        ConfigSetting expected = ConfigSetting.builder("app.destination")
+                .description("this description overrides the sentences")
+                .defaultValue("stdout")
+                .exampleValue("stderr")
+                .exampleValue("null")
+                .build();
+        testDefaultPathForSingleSetting("CFG_DESTINATION", expected);
+    }
+
+    @Test
+    public void defaultPath_restricted_appMessage() throws Exception {
+        ConfigSetting expected = ConfigSetting.builder("app.message")
+                .description("Message configuration property name. This second sentence contains some detail about the property.")
+                .defaultValue("Hello, world!")
+                .exampleValue("Looking good, Billy Ray!")
+                .exampleValue("Feeling good, Louis!")
+                .build();
+        testDefaultPathForSingleSetting("CFG_MESSAGE", expected);
+    }
+
+    @SuppressWarnings("UnusedReturnValue")
+    private ConfigSetting testDefaultPathForSingleSetting(String settingKey, ConfigSetting expected) throws Exception {
+        String[] args = {
+                ConfigDoclet.OPT_OUTPUT_FORMAT, ConfigDoclet.OUTPUT_FORMAT_JSON,
+                ConfigDoclet.OPT_FIELD_NAME_PATTERN + "=" + settingKey
+        };
+        String output = execute(args);
+        ConfigSetting[] settings = new Gson().fromJson(output, ConfigSetting[].class);
+        checkState(settings.length == 1);
+        ConfigSetting actual = settings[0];
+        if (!expected.equals(actual)) {
+            System.err.format("expected:%n%n%s%n%nactual:%n%n%s%n%n", expected.toStringWithExamples(), actual.toStringWithExamples());
+        }
+        assertEquals("app.destination", expected, settings[0]);
+        return settings[0];
     }
 
     @Test

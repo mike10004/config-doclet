@@ -15,8 +15,7 @@ public class PropertiesOutputFormatterTest {
 
     @Test
     public void multilineDescription() throws Exception {
-        ConfigSetting setting = ConfigSetting.builder()
-                .key("app.multilineDescription")
+        ConfigSetting setting = ConfigSetting.builder("app.multilineDescription")
                 .description("This description\n has multiple\n lines")
                 .defaultValue("A\tcomplex\nvalue")
                 .build();

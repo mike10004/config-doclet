@@ -38,26 +38,26 @@ final class ConfigSetting {
         return Objects.hash(key, description, defaultValue, exampleValues);
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static Builder builder(String key) {
+        return new Builder(key);
+    }
+
+    public String toStringWithExamples() {
+        return toString(true);
     }
 
     @SuppressWarnings("UnusedReturnValue")
     public static final class Builder {
 
-        private String key;
+        private final String key;
         private String description;
         private String defaultValue;
 
         private final List<ExampleValue> exampleValues;
 
-        private Builder() {
+        private Builder(String key) {
+            this.key = requireNonNull(key);
             exampleValues = new ArrayList<>();
-        }
-
-        public Builder key(String val) {
-            key = val;
-            return this;
         }
 
         public Builder description(String val) {
@@ -85,6 +85,7 @@ final class ConfigSetting {
     }
 
     static final class ExampleValue {
+
         public final String value;
         public final String description;
 
@@ -104,19 +105,37 @@ final class ConfigSetting {
 
         @Override
         public int hashCode() {
-
             return Objects.hash(value, description);
+        }
+
+        @Override
+        public String toString() {
+            ToStringHelper h= new ToStringHelper(this)
+                    .add("value", value);
+            if (description != null) {
+                h.add("description", description);
+            }
+            return h.toString();
         }
     }
 
     @Override
     public String toString() {
-        return "ConfigSetting{" +
-                "key='" + key + '\'' +
-                ", description='" + description + '\'' +
-                ", defaultValue='" + defaultValue + '\'' +
-                ", exampleValues.size=" + exampleValues.size() +
-                '}';
+        return toString(true);
+    }
+
+    private String toString(boolean includeExamples) {
+        ToStringHelper h = new ToStringHelper(this)
+                .add("key", key)
+                .add("description", description)
+                .add("defaultValue", defaultValue)
+                .add("exampleValues.size", exampleValues.size());
+        if (includeExamples) {
+            for (int i = 0; i < exampleValues.size(); i++) {
+                h.add("exampleValues[" + i + "]", exampleValues.get(i));
+            }
+        }
+        return h.toString();
     }
 
     public static Comparator<ConfigSetting> comparatorByKey() {

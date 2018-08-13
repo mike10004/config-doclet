@@ -4,8 +4,6 @@ import com.google.gson.Gson;
 import com.sun.source.doctree.BlockTagTree;
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
-import com.sun.source.doctree.LinkTree;
-import com.sun.source.doctree.TextTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
@@ -35,12 +33,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -239,9 +234,11 @@ public class ConfigDoclet implements Doclet {
                     if (constValue != null) {
                         ConfigSetting.Builder b = prepareBuilder(enclosed, constValue);
                         if (tree != null) {
-                            String description = createDescriptionFromFullBody(tree.getFullBody());
+                            LinkValueRenderer linkValueRenderer = new LinkValueRenderer(enclosed, linkResolver, LinkValueRenderer.RenderMode.VALUE_ONLY);
+                            CommentRenderer textRenderer = new TextCommentRenderer(new LinkValueRenderer(enclosed, linkResolver, LinkValueRenderer.RenderMode.PARENTHESIZED_VALUE));
+                            String description = textRenderer.render(tree.getFullBody());
                             b.description(description);
-                            CollectingScanner visitor = new CollectingScanner(actionableTags, enclosed, b, linkResolver);
+                            CollectingScanner visitor = new CollectingScanner(actionableTags, enclosed, b, textRenderer, linkValueRenderer);
                             //noinspection RedundantCast
                             visitor.scan(tree, (Void) null);
                         } else {
@@ -302,106 +299,9 @@ public class ConfigDoclet implements Doclet {
         reporter.print(Diagnostic.Kind.NOTE, String.format("debug variable elements:%n%s%n", elementsDebug));
     }
 
-    static String qualifySignature(String signature, Element element) {
-        String fieldPrefix = getPrefix(ElementKind.FIELD);
-        if (signature.startsWith(fieldPrefix)) {
-            String parentSignature = constructSignature(element.getEnclosingElement());
-            return parentSignature + signature;
-        }
-        return signature;
-    }
-
-    static String constructSignature(Element element) {
-        List<Element> lineage = new ArrayList<>();
-        do {
-            lineage.add(element);
-            element = element.getEnclosingElement();
-        } while (element != null);
-        Collections.reverse(lineage);
-        StringBuilder sb = new StringBuilder();
-        for (Element el : lineage) {
-            if (!isSignaturePart(el)) {
-                continue;
-            }
-            sb.append(getPrefix(el));
-            Name name = el.getSimpleName();
-            sb.append(name.toString());
-        }
-        return sb.toString();
-    }
-
-    private static boolean isSignaturePart(Element el) {
-        switch (el.getKind()) {
-            case PACKAGE:
-            case CLASS:
-            case METHOD:
-            case FIELD:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static String getPrefix(Element el) {
-        return getPrefix(el.getKind());
-    }
-
-    private static String getPrefix(ElementKind kind) {
-        switch (kind) {
-            case PACKAGE:
-                return "";
-            case CLASS:
-                return ".";
-            case METHOD:
-            case FIELD:
-                return "#";
-            default:
-                return "";
-        }
-    }
-
-    private static class CollectionLinkResolver  implements LinkResolver {
-
-        private final Collection<VariableElement> elements;
-        private final Map<VariableElement, String> signatureCache;
-
-        public CollectionLinkResolver(Collection<VariableElement> elements) {
-            this.elements = elements;
-            signatureCache = new HashMap<>();
-        }
-
-        @Nullable
-        @Override
-        public VariableElement resolve(Element context, String signature) {
-            requireNonNull(signature, "signature");
-            return elements.stream().filter(element -> {
-                String elSignature = getElementSignature(element);
-                return signature.equals(elSignature);
-            }).findFirst().orElse(null);
-        }
-
-        private String getElementSignature(VariableElement el) {
-            return signatureCache.computeIfAbsent(el, ConfigDoclet::constructSignature);
-        }
-    }
-
     private ConfigSetting.Builder prepareBuilder(@SuppressWarnings("unused") VariableElement element, Object constValue) {
-        ConfigSetting.Builder b = ConfigSetting.builder();
-        b.key(constValue.toString());
+        ConfigSetting.Builder b = ConfigSetting.builder(constValue.toString());
         return b;
-    }
-
-    String createDescriptionFromFullBody(List<? extends DocTree> fullBody) {
-        return joinText(fullBody, " ");
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    String joinText(List<? extends DocTree> fullBody, String delimiter) {
-        return fullBody.stream()
-                .filter(TextTree.class::isInstance)
-                .map(tree -> (TextTree) tree)
-                .map(TextTree::getBody)
-                .collect(Collectors.joining(delimiter)).trim();
     }
 
     @Override
@@ -446,22 +346,21 @@ public class ConfigDoclet implements Doclet {
         return true;
     }
 
-    private interface LinkResolver {
-        @Nullable
-        VariableElement resolve(Element context, String signature);
-    }
-
     private class CollectingScanner extends ActionableTagScanner<Void, Void> {
 
         @SuppressWarnings("unused")
         private final VariableElement element;
         private final ConfigSetting.Builder itemBuilder;
-        private final LinkResolver linkResolver;
+        private final CommentRenderer linkValueRenderer;
+        private final CommentRenderer textRenderer;
+        private final CommentRenderer simpleRenderer;
 
-        public CollectingScanner(Set<String> actionableTags, VariableElement element, ConfigSetting.Builder itemBuilder, LinkResolver linkResolver) {
+        public CollectingScanner(Set<String> actionableTags, VariableElement element, ConfigSetting.Builder itemBuilder, CommentRenderer textRenderer, CommentRenderer linkValueRenderer) {
             super(actionableTags);
             this.element = element;
-            this.linkResolver = linkResolver;
+            this.linkValueRenderer = linkValueRenderer;
+            this.textRenderer = textRenderer;
+            simpleRenderer = new SimpleRenderer();
             this.itemBuilder = itemBuilder;
         }
 
@@ -482,60 +381,30 @@ public class ConfigDoclet implements Doclet {
         }
 
         private void addExample(BlockTagTree node) {
-            fudgeIt(itemBuilder::exampleValue, node);
+            itemBuilder.exampleValue(simpleRenderer.render(Collections.singleton(node)));
         }
 
         private void addDescription(BlockTagTree node) {
-            fudgeIt(itemBuilder::description, node);
-        }
-
-        @Nullable
-        private VariableElement findVariableElementForSignature(String signature) {
-            signature = qualifySignature(signature, element);
-            return linkResolver.resolve(element, signature);
+            Collection<? extends DocTree> targets;
+            if (node instanceof UnknownBlockTagTree) {
+                targets = ((UnknownBlockTagTree)node).getContent();
+            } else {
+                targets = Collections.singleton(node);
+            }
+            String text = textRenderer.render(targets);
+            itemBuilder.description(text);
         }
 
         private void addDefault(BlockTagTree node) {
+            String defaultValue = null;
             if (node instanceof UnknownBlockTagTree) {
                 List<? extends DocTree> content = ((UnknownBlockTagTree) node).getContent();
-                if (!content.isEmpty() && content.get(0) instanceof LinkTree) {
-                    LinkTree link = (LinkTree) content.get(0);
-                    String signature = link.getReference().getSignature();
-                    if (signature == null) {
-                        reporter.print(Diagnostic.Kind.WARNING, "tried to resolve empty signature");
-                    } else {
-                        @Nullable VariableElement element = findVariableElementForSignature(signature);
-                        if (element != null) {
-                            Object constValue = element.getConstantValue();
-                            String defaultValue = "";
-                            if (constValue != null) {
-                                defaultValue = constValue.toString();
-                            }
-                            itemBuilder.defaultValue(defaultValue);
-                            return;
-                        }
-                    }
-                }
-                String defaultValue = joinText(content, " ");
-                itemBuilder.defaultValue(defaultValue);
-            } else {
-                fudgeIt(itemBuilder::defaultValue, node);
+                defaultValue = linkValueRenderer.render(content);
             }
-        }
-
-        private void fudgeIt(Consumer<? super String> mangling, BlockTagTree node) {
-            String stringified = node.toString();
-            String expectedPrefix = "@" + node.getTagName();
-            String outcome;
-            if (stringified.startsWith(expectedPrefix)) {
-                outcome = StringUtils.removeStart(stringified, expectedPrefix);
-            } else {
-                ToStringHelper h = new ToStringHelper(node);
-                h.add("toString", node.toString());
-                outcome = h.toString();
-
+            if (defaultValue == null) {
+                defaultValue = simpleRenderer.render(Collections.singleton(node));
             }
-            mangling.accept(outcome);
+            itemBuilder.defaultValue(defaultValue);
         }
 
     }
