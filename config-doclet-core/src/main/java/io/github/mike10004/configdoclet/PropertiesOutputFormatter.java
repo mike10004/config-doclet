@@ -6,8 +6,6 @@ import java.util.List;
 
 class PropertiesOutputFormatter implements OutputFormatter {
 
-    private static final String COMMENT_CHAR = "#";
-
     public PropertiesOutputFormatter() {
     }
 
@@ -21,11 +19,13 @@ class PropertiesOutputFormatter implements OutputFormatter {
     }
 
     String getAssignedValue(ConfigSetting item) {
-        String value = "";
+        String value;
         if (item.defaultValue != null) {
             value = item.defaultValue;
         } else if (!item.exampleValues.isEmpty()) {
             value = item.exampleValues.get(0).value;
+        } else {
+            value = "";
         }
         return value;
     }
@@ -33,9 +33,12 @@ class PropertiesOutputFormatter implements OutputFormatter {
     @SuppressWarnings("RedundantThrows")
     void format(ConfigSetting item, PrintWriter out) throws IOException {
         if (item.description != null) {
-            out.format("%s %s%n", COMMENT_CHAR, item.description);
+            StringEscaping.writePropertyComment(item.description, out);
         }
         String value = getAssignedValue(item);
-        out.format("%s%s = %s%n", COMMENT_CHAR, item.key, value);
+        String key = StringEscaping.escapePropertyKey(item.key);
+        value = StringEscaping.escapePropertyValue(value);
+        StringEscaping.writePropertyComment(String.format("%s = %s", key, value), out);
     }
+
 }

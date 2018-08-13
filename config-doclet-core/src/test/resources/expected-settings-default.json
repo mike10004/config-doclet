@@ -1,0 +1,49 @@
+[
+  {
+    "key": "app.message",
+    "description": "Message configuration property name. This second sentence contains some detail about the property.",
+    "defaultValue": "Hello, world!",
+    "exampleValues": [
+      {
+        "value": " Looking good, Billy Ray!"
+      },
+      {
+        "value": " Feeling good, Louis!"
+      }
+    ]
+  },
+  {
+    "key": "app.destination",
+    "description": " this description overrides the sentences",
+    "defaultValue": "stdout",
+    "exampleValues": [
+      {
+        "value": " stderr"
+      },
+      {
+        "value": " null"
+      }
+    ]
+  },
+  {
+    "key": "app.numRepetitions",
+    "description": "Setting specifying number of repetitions. A value of N means that the message is printed N times.",
+    "defaultValue": "1",
+    "exampleValues": []
+  },
+  {
+    "key": "app.undocumentedSetting",
+    "exampleValues": []
+  },
+  {
+    "key": "app.server.attire",
+    "description": "Setting that determines what style attire the server will be wearing.",
+    "exampleValues": []
+  },
+  {
+    "key": "app.choice.default",
+    "description": "Setting that specifies the default choice.",
+    "defaultValue": "STAY",
+    "exampleValues": []
+  }
+]
