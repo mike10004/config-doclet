@@ -4,9 +4,11 @@ import javax.annotation.Nullable;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
 
 public class MavenCoordinates {
+
+    private static final String TYPE_JAR = "jar";
+    private static final String TYPE_DEFAULT = TYPE_JAR;
 
     private final String groupId;
     private final String artifactId;
@@ -26,10 +28,6 @@ public class MavenCoordinates {
         checkArgument(!value.startsWith("${"), "invalid %s: %s", fieldName, value);
         return value;
     }
-
-//        public static MavenCoordinates fromProperties(Properties p) {
-//            return new MavenCoordinates(p.getProperty("project.groupId"), p.getProperty("project.artifactId"), p.getProperty("project.version"), p.getProperty("project.classifier"));
-//        }
 
     @Override
     public String toString() {
@@ -51,12 +49,8 @@ public class MavenCoordinates {
 
     @Override
     public int hashCode() {
-
         return Objects.hash(groupId, artifactId, version, classifier);
     }
-
-    private static final String TYPE_JAR = "jar";
-    private static final String TYPE_DEFAULT = TYPE_JAR;
 
     public String constructStandardFilename(@Nullable String type) {
         if (type == null) {
@@ -65,40 +59,24 @@ public class MavenCoordinates {
         return String.format("%s-%s.%s", artifactId, version, type);
     }
 
-//        public String constructStandardJarFilename() {
-//            return constructStandardFilename(TYPE_JAR);
-//        }
-
+    @SuppressWarnings("unused")
     public String getGroupId() {
         return groupId;
     }
 
+    @SuppressWarnings("unused")
     public String getArtifactId() {
         return artifactId;
     }
 
+    @SuppressWarnings("unused")
     public String getVersion() {
         return version;
     }
 
-    @SuppressWarnings("SameParameterValue")
-    public String getClassifier(String defaultValue) {
-        requireNonNull(defaultValue, "defaultValue");
-        return classifier == null ? defaultValue : classifier;
+    @SuppressWarnings("unused")
+    @Nullable
+    public String getClassifier() {
+        return classifier;
     }
-
-//        private static final Ordering<String> STRING_ORDERING = Ordering.natural();
-//
-//        private static Ordering<MavenCoordinates> orderingByString(Function<MavenCoordinates, String> fn) {
-//            return STRING_ORDERING.onResultOf(fn::apply);
-//        }
-//
-//        private static final Ordering<MavenCoordinates> DEFAULT_ORDERING = orderingByString(MavenCoordinates::getGroupId)
-//                .compound(orderingByString(MavenCoordinates::getArtifactId))
-//                .compound(orderingByString(MavenCoordinates::getVersion))
-//                .compound(orderingByString(coords -> coords.getClassifier("")));
-//
-//        public static Ordering<MavenCoordinates> defaultOrdering() {
-//            return DEFAULT_ORDERING;
-//        }
 }

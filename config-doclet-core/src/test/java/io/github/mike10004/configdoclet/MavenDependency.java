@@ -1,5 +1,6 @@
 package io.github.mike10004.configdoclet;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
@@ -7,10 +8,12 @@ import static java.util.Objects.requireNonNull;
 public class MavenDependency {
 
     public final MavenCoordinates artifact;
+    @Nullable
     public final String type;
+    @Nullable
     public final String scope;
 
-    public MavenDependency(MavenCoordinates artifact, String type, String scope) {
+    public MavenDependency(MavenCoordinates artifact, @Nullable String type, @Nullable String scope) {
         this.artifact = requireNonNull(artifact, "artifact");
         this.type = type;
         this.scope = scope;
@@ -45,11 +48,4 @@ public class MavenDependency {
         return artifact.constructStandardFilename(type);
     }
 
-//        private static final Ordering<MavenDependency> DEFAULT_ORDERING = MavenCoordinates.defaultOrdering().<MavenDependency>onResultOf(dep -> dep.artifact)
-//                .compound(Ordering.<String>natural().<MavenDependency>onResultOf(dep -> Strings.nullToEmpty(dep.type)))
-//                .compound(Ordering.<String>natural().<MavenDependency>onResultOf(dep -> Strings.nullToEmpty(dep.scope)));
-//
-//        public static Ordering<MavenDependency> defaultOrdering() {
-//            return DEFAULT_ORDERING;
-//        }
 }

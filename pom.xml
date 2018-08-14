@@ -39,7 +39,7 @@
     </scm>
 
     <properties>
-        <jdk.version.minimum>1.9</jdk.version.minimum>
+        <jdk.version.minimum>9</jdk.version.minimum>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <slf4j.version>1.7.25</slf4j.version>
@@ -85,7 +85,7 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.7.0</version>
                     <configuration>
                         <source>${jdk.version.minimum}</source>
                         <target>${jdk.version.minimum}</target>
@@ -93,7 +93,7 @@
                 </plugin>
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.19.1</version>
+                    <version>2.22.0</version>
                     <configuration>
                         <systemPropertyVariables>
                             <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
@@ -133,7 +133,7 @@
                         <configuration>
                             <rules>
                                 <requireJavaVersion>
-                                    <version>9.0.0</version>
+                                    <version>${jdk.version.minimum}.0.0</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
@@ -155,7 +155,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.10.4</version>
+                <version>3.0.1</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>

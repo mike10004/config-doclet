@@ -1,5 +1,6 @@
 package io.github.mike10004.configdoclet;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharSource;
 import com.google.common.io.Resources;
@@ -21,6 +22,7 @@ import java.io.Reader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -199,11 +202,30 @@ public class ConfigDocletTest {
         assertEquals("settings[0].key", "wacky.setting.name", settings[0].key);
     }
 
-    private String buildClasspath() throws URISyntaxException, IOException {
-        CharSource cs = Resources.asCharSource(getClass().getResource("/dependencies.txt"), UTF_8);
+    private static final String SYSPROP_DUMP_PARSED_DEPENDENCIES = "configdoclet.build.tests.dumpClasspath";
+
+    private static boolean isDumpParsedDependencies() {
+        return Boolean.parseBoolean(System.getProperty(SYSPROP_DUMP_PARSED_DEPENDENCIES, "false"));
+    }
+
+    private static final Supplier<String> classpathSupplier = Suppliers.memoize(() -> {
+        URL depsResource = ConfigDocletTest.class.getResource("/dependencies.txt");
+        CharSource cs = Resources.asCharSource(depsResource, UTF_8);
         List<MavenRepositoryItem> repoItems;
         try (Reader reader = cs.openStream()) {
             repoItems = new MavenDependencyListParser().parseList(reader);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        if (isDumpParsedDependencies()) {
+            try {
+                System.out.format("%s:%n%n", depsResource);
+                cs.copyTo(System.out);
+                System.out.format("%n%n%n");
+                repoItems.forEach(item -> System.out.format("%s%n", item));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
         String docletPart = new File(Tests.config().get("project.build.outputDirectory")).getAbsolutePath();
         Stream<String> cpComponents = repoItems.stream()
@@ -212,8 +234,11 @@ public class ConfigDocletTest {
                 .map(File::getAbsolutePath);
         String cp = Stream.concat(Stream.of(docletPart), cpComponents)
                 .collect(Collectors.joining(File.pathSeparator));
+        if (isDumpParsedDependencies()) {
+            System.out.format("classpath: %s%n", cp);
+        }
         return cp;
-    }
+    });
 
     private String execute(String[] moreArgs) throws Exception  {
         return execute(moreArgs, new String[]{"com.example"});
@@ -223,7 +248,7 @@ public class ConfigDocletTest {
         File sourcepath = prepareProject().toPath().resolve("src/main/java").toFile();
         System.out.format("using sourcepath %s%n", sourcepath);
         checkState(sourcepath.isDirectory(), "not a directory: %s", sourcepath);
-        String docletClasspath = buildClasspath();
+        String docletClasspath = classpathSupplier.get();
         File outputDir = temporaryFolder.newFolder();
         System.out.format("docletClasspath = %s%n", docletClasspath);
         String[] commonArgs = {"-doclet", ConfigDoclet.class.getName(),
