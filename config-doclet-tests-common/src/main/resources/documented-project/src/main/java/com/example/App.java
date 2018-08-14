@@ -104,7 +104,7 @@ public class App {
         /**
          * Setting that is defined in a public nested class.
          */
-        private static final String CFG_PUBLIC_NESTED_CLASS_SETTING = "cfg.nestedClass.public.foo";
+        private static final String CFG_PUBLIC_NESTED_CLASS_SETTING = "app.nestedClass.public.foo";
 
     }
 
@@ -117,8 +117,41 @@ public class App {
         /**
          * Setting that is defined in a private nested class.
          */
-        private static final String CFG_PRIVATE_NESTED_CLASS_SETTING = "cfg.nestedClass.private.bar";
+        private static final String CFG_PRIVATE_NESTED_CLASS_SETTING = "app.nestedClass.private.bar";
     }
+
+    private static String getRuntimeOnlyConfigurationSettingKey() {
+        return "app.runtimeKey";
+    }
+
+    /**
+     * Setting whose key is not known at compile-time. The key is specified by the {@code cfg.key} tag.
+     * This means you must keep the value of the tag in sync with the value determined at runtime.
+     * @cfg.key app.runtimeKey
+     */
+    private static final String CFG_NOT_COMPILE_TIME_CONSTANT = getRuntimeOnlyConfigurationSettingKey();
+
+    /**
+     * Setting whose value is explicitly empty but has some nonempty examples.
+     * @cfg.default
+     * @cfg.example foo
+     * @cfg.example bar
+     */
+    private static final String CFG_EMPTY_DEFAULT = "app.emptyDefault";
+
+    /**
+     * Setting that by default will not be included because it is deprecated.
+     * @deprecated use something else instead
+     */
+    @Deprecated
+    private static final String CFG_DEPRECATED = "app.something.deprecated";
+
+    /**
+     * Setting that is annotated as deprecated but included because of default will not be included because it is deprecated.
+     * @deprecated use something else instead, but use this if you have to
+     */
+    @Deprecated
+    private static final String CFG_DEPRECATED_BUT_INCLUDED = "app.something.deprecated.butImportant";
 
     /**
      * Main method for the program.

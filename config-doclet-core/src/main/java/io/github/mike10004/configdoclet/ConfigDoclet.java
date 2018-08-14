@@ -14,7 +14,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic;
@@ -36,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -69,6 +69,8 @@ public class ConfigDoclet implements Doclet {
     static final String TAG_CFG_DESCRIPTION = "cfg.description";
     static final String TAG_CFG_EXAMPLE = "cfg.example";
     static final String TAG_CFG_DEFAULT_VALUE = "cfg.default";
+    static final String TAG_CFG_KEY = "cfg.key";
+    static final String TAG_CFG_INCLUDE = "cfg.include";
 
     private Reporter reporter;
     private final Optionage optionage;
@@ -90,7 +92,7 @@ public class ConfigDoclet implements Doclet {
     }
 
     Set<String> buildActionableTagSet() {
-        return Set.of(TAG_CFG_DEFAULT_VALUE, TAG_CFG_DESCRIPTION, TAG_CFG_EXAMPLE);
+        return Set.of(TAG_CFG_DEFAULT_VALUE, TAG_CFG_DESCRIPTION, TAG_CFG_EXAMPLE, TAG_CFG_KEY);
     }
 
     private static boolean isPrintExtraDiagnostics() {
@@ -204,13 +206,34 @@ public class ConfigDoclet implements Doclet {
         return SourceVersion.RELEASE_6;
     }
 
-    private boolean isActionableEnclosedElement(Element element, Predicate<? super CharSequence> elementNamePredicate) {
-        Name name = element.getSimpleName();
+    private boolean isActionableEnclosedElement(Element element, Predicate<? super CharSequence> elementNamePredicate, Function<? super Element, DocCommentTree> lazyDocCommentTree) {
+        Predicate<? super Element> deprecationPredicate = createDeprecationPredicate(lazyDocCommentTree);
         return element.getKind() == ElementKind.FIELD
                 && element.getModifiers().contains(Modifier.STATIC)
                 && element.getModifiers().contains(Modifier.FINAL)
                 && element instanceof VariableElement
-                && elementNamePredicate.test(name);
+                && deprecationPredicate.test(element)
+                && elementNamePredicate.test(element.getSimpleName());
+    }
+
+    /**
+     * Returns a predicate that evaluates to true on an element if it is to be considered actionable.
+     * This predicate examines the element's deprecation annotation and if it is deprecated, the element
+     * is only included if there is an {@link #TAG_CFG_INCLUDE} tag.
+     */
+    private Predicate<? super Element> createDeprecationPredicate(Function<? super Element, DocCommentTree> lazyDocCommentTree) {
+        // TODO support option that specifies that deprecated elements should be included
+        return element -> {
+            Deprecated deprecated = element.getAnnotation(Deprecated.class);
+            if (deprecated != null) {
+                DocCommentTree tree = lazyDocCommentTree.apply(element);
+                if (tree != null) {
+                    boolean explicitInclude = tree.getBlockTags().stream().anyMatch(t -> isCfgTag(t, TAG_CFG_INCLUDE));
+                    return explicitInclude;
+                }
+            }
+            return true; // not deprecated => include
+        };
     }
 
     private boolean isActionableEnclosingElement(Element element) {
@@ -242,17 +265,20 @@ public class ConfigDoclet implements Doclet {
         Set<String> actionableTags = buildActionableTagSet();
         Predicate<? super CharSequence> namePredicate = constructElementNamePredicate();
         maybeDumpAll("variable elements", variableElements);
+        Function<? super Element, DocCommentTree> commentTreeProvider = element -> {
+            return environment.getDocTrees().getDocCommentTree(element);
+        };
         List<VariableElement> relevantFields = variableElements.stream()
-                .filter(element -> isActionableEnclosedElement(element, namePredicate))
+                .filter(element -> isActionableEnclosedElement(element, namePredicate, commentTreeProvider))
                 .collect(Collectors.toList());
         reporter.print(Diagnostic.Kind.NOTE, String.format("%d of %d variable elements are relevant (used name predicate %s)", relevantFields.size(), variableElements.size(), namePredicate));
         maybeDumpAll("relevant and actionable elements", relevantFields);
         relevantFields.forEach(enclosed -> {
                     log.log(defaultLevel, () -> String.format("enclosed: kind=%s; name=%s", enclosed.getKind(), enclosed.getSimpleName()));
-                    DocCommentTree tree = environment.getDocTrees().getDocCommentTree(enclosed);
-                    Object constValue = enclosed.getConstantValue();
-                    if (constValue != null) {
-                        ConfigSetting.Builder b = prepareBuilder(enclosed, constValue);
+                    DocCommentTree tree = commentTreeProvider.apply(enclosed);
+                    String configKey = extractConfigKey(enclosed, tree);
+                    if (configKey != null) {
+                        ConfigSetting.Builder b = prepareBuilder(enclosed, configKey);
                         if (tree != null) {
                             LinkValueRenderer linkValueRenderer = new LinkValueRenderer(enclosed, linkResolver, LinkValueRenderer.RenderMode.VALUE_ONLY);
                             CommentRenderer textRenderer = new TextCommentRenderer(new LinkValueRenderer(enclosed, linkResolver, LinkValueRenderer.RenderMode.PARENTHESIZED_VALUE));
@@ -267,13 +293,33 @@ public class ConfigDoclet implements Doclet {
                         ConfigSetting item = b.build();
                         items.add(item);
                     } else {
-                        reporter.print(Diagnostic.Kind.NOTE, String.format("element does not have constant value: %s", enclosed.getSimpleName()));
+                        reporter.print(Diagnostic.Kind.NOTE, String.format("element does not have constant value or %s defined in comment: %s", TAG_CFG_KEY, enclosed.getSimpleName()));
                     }
                 });
         List<ConfigSetting> others = appendOthers(optionage.getOptionString(OPT_APPEND_SETTINGS, null));
         items.addAll(others);
         boolean retval = produceOutput(items);
         return retval;
+    }
+
+    private static boolean isCfgTag(DocTree tree, String tagName) {
+        return tree instanceof BlockTagTree
+                && tagName.equalsIgnoreCase(((BlockTagTree)tree).getTagName());
+    }
+
+    @Nullable
+    private String extractConfigKey(VariableElement element, DocCommentTree docCommentTree) {
+        Object constValue = element.getConstantValue();
+        if (constValue == null) {
+            constValue = docCommentTree.getBlockTags().stream()
+                    .filter(tree -> ConfigDoclet.isCfgTag(tree, TAG_CFG_KEY))
+                    .filter(UnknownBlockTagTree.class::isInstance)
+                    .map(tree -> CommentRenderer.concatenateText(((UnknownBlockTagTree)tree).getContent()))
+                    .map(String::trim)
+                    .filter(text -> !text.isEmpty())
+                    .findFirst().orElse(null);
+        }
+        return constValue == null ? null : constValue.toString();
     }
 
     private Charset getAppendOthersCharset() {

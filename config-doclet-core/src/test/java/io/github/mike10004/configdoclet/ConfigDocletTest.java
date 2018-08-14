@@ -113,8 +113,11 @@ public class ConfigDocletTest {
                 "app.server.attire",
                 "app.choice.default",
                 "app.undocumentedSetting",
-                "cfg.nestedClass.private.bar",
-                "cfg.nestedClass.public.foo"
+                "app.nestedClass.private.bar",
+                "app.nestedClass.public.foo",
+                "app.runtimeKey",
+                "app.emptyDefault",
+                "app.something.deprecated.butImportant"
         );
         List<String> absentRequired = new ArrayList<>();
         required.forEach(settingKey -> {
@@ -161,6 +164,21 @@ public class ConfigDocletTest {
     }
 
     @Test
+    public void defaultPath_restricted_emptyDefault() throws Exception {
+        ConfigSetting expected = ConfigSetting.builder("app.emptyDefault")
+                .defaultValue("")
+                .exampleValue("foo")
+                .exampleValue("bar")
+                .build();
+        ConfigSetting actual = testDefaultPathForSingleSetting("CFG_EMPTY_DEFAULT", expected, true);
+        assertEquals("key", expected.key, actual.key);
+        assertEquals("default", expected.defaultValue, actual.defaultValue);
+        assertEquals("num exmaples", expected.exampleValues.size(), actual.exampleValues.size());
+        assertEquals("e1", expected.exampleValues.get(0).value, actual.exampleValues.get(0).value);
+        assertEquals("e2", expected.exampleValues.get(1).value, actual.exampleValues.get(1).value);
+    }
+
+    @Test
     public void defaultPath_inlineCode() throws Exception {
         ConfigSetting expected = ConfigSetting.builder("app.important.pathname")
                 .description("Setting specifying a pathname. This demonstrates rendering of  special text  in\n inline code spans.")
@@ -170,19 +188,25 @@ public class ConfigDocletTest {
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    private ConfigSetting testDefaultPathForSingleSetting(String settingKey, ConfigSetting expected) throws Exception {
+    private ConfigSetting testDefaultPathForSingleSetting(String fieldNamePattern, ConfigSetting expected) throws Exception {
+        return testDefaultPathForSingleSetting(fieldNamePattern, expected, false);
+    }
+
+    private ConfigSetting testDefaultPathForSingleSetting(String fieldNamePattern, ConfigSetting expected, boolean ignoreEqualityCheck) throws Exception {
         String[] args = {
                 ConfigDoclet.OPT_OUTPUT_FORMAT, ConfigDoclet.OUTPUT_FORMAT_JSON,
-                ConfigDoclet.OPT_FIELD_NAME_PATTERN + "=" + settingKey
+                ConfigDoclet.OPT_FIELD_NAME_PATTERN + "=" + fieldNamePattern
         };
         String output = execute(args);
         ConfigSetting[] settings = new Gson().fromJson(output, ConfigSetting[].class);
         checkState(settings.length == 1);
         ConfigSetting actual = settings[0];
-        if (!expected.equals(actual)) {
-            System.err.format("expected:%n%n%s%n%nactual:%n%n%s%n%n", expected.toStringWithExamples(), actual.toStringWithExamples());
+        if (!ignoreEqualityCheck) {
+            if (!expected.equals(actual)) {
+                System.err.format("expected:%n%n%s%n%nactual:%n%n%s%n%n", expected.toStringWithExamples(), actual.toStringWithExamples());
+            }
+            assertEquals("expected setting", expected, settings[0]);
         }
-        assertEquals("expected setting", expected, settings[0]);
         return settings[0];
     }
 
