@@ -25,6 +25,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -65,6 +67,9 @@ public class ConfigDoclet implements Doclet {
     static final String OPT_FIELD_NAME_REGEX = "--field-regex";
     static final String OPT_OUTPUT_FORMAT = "-outputformat";
     static final String OPT_APPEND_SETTINGS = "--append-settings";
+    static final String OPT_HEADER = "-header"; // piggyback on standard doclet setting
+    static final String OPT_BOTTOM = "-footer"; // piggyback on standard doclet setting
+    static final String OPT_ASSIGNATION_MODE = "--assign-value";
     static final String OUTPUT_FORMAT_PROPERTIES = "properties";
     static final String OUTPUT_FORMAT_JSON = "json";
     static final IOCase DEFAULT_PATTERN_CASE_SENSITIVITY = IOCase.SENSITIVE;
@@ -387,17 +392,59 @@ public class ConfigDoclet implements Doclet {
         return StandardCharsets.UTF_8;
     }
 
+    private PropertiesOutputFormatter.AssignationMode getAssignationMode() {
+        String token = optionage.getOptionString(OPT_ASSIGNATION_MODE, null);
+        return PropertiesOutputFormatter.AssignationMode.parse(token);
+    }
+
     protected OutputFormatter getOutputFormatter() {
         String format = optionage.getOptionString(OPT_OUTPUT_FORMAT, OUTPUT_FORMAT_PROPERTIES);
         switch (format) {
             case OUTPUT_FORMAT_PROPERTIES:
-                return new PropertiesOutputFormatter();
+                return new PropertiesOutputFormatter(readHeader(), readBottom(), getAssignationMode());
             case OUTPUT_FORMAT_JSON:
                 return new GsonOutputFormatter();
             default:
                 throw new IllegalArgumentException("invalid output format");
 
         }
+    }
+
+    private String readHeader() {
+        @Nullable String headerSpecification = optionage.getOptionString(OPT_HEADER, null);
+        return readBookend(headerSpecification);
+    }
+
+    private String readBottom() {
+        @Nullable String bottomSpecification = optionage.getOptionString(OPT_BOTTOM, null);
+        return readBookend(bottomSpecification);
+    }
+
+    static final String FILE_URL_INDICATOR = "file:";
+
+    // TODO support option to specify -header or -bottom charset
+    private Charset getBookendCharset() {
+        return Charset.defaultCharset();
+    }
+
+    private String readBookend(@Nullable String specification) {
+        String content = "";
+        if (specification != null) {
+            if (specification.startsWith(FILE_URL_INDICATOR)) {
+                try {
+                    File sourceFile = new File(new URI(specification));
+                    byte[] bytes = java.nio.file.Files.readAllBytes(sourceFile.toPath());
+                    content = new String(bytes, getBookendCharset());
+                } catch (IOException | URISyntaxException e) {
+                    log.log(Level.WARNING, e, () -> "failed to read from source file " + specification);
+                    reporter.print(Diagnostic.Kind.WARNING, "failed to read from header/bottom source file " + specification);
+                }
+            } else {
+//                content = org.apache.commons.lang3.StringEscapeUtils.unescapeHtml4(specification);
+                content = specification;
+            }
+        }
+        return content;
     }
 
     private void maybeWarnAboutDuplicates(List<ConfigSetting> settings) {
@@ -462,6 +509,9 @@ public class ConfigDoclet implements Doclet {
                 addSortKey(node);
             } else //noinspection StatementWithEmptyBody
                 if (TAG_CFG_INCLUDE.equals(tagName)) {
+                // nothing to do
+            } else //noinspection StatementWithEmptyBody
+                if (TAG_CFG_KEY.equals(tagName)) {
                 // nothing to do
             } else {
                 log.warning(() -> String.format("unsupported tag %s", node.getTagName()));

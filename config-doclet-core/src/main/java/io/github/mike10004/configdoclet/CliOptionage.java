@@ -89,6 +89,10 @@ class CliOptionage implements Optionage {
                         .arg("<jsonfile>")
                         .description("append the settings parsed from json output of this doclet in specified file")
                         .build(),
+                BasicOption.builder(ConfigDoclet.OPT_ASSIGNATION_MODE, processor)
+                        .arg("<string>")
+                        .description("one of {'auto', 'always', 'never'}: specifies whether the value assignation in the output properties file is commented")
+                        .build(),
         }));
     }
 

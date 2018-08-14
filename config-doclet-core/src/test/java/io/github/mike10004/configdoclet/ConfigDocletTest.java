@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import io.github.mike10004.configdoclet.tests.SampleProject;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.text.StringEscapeUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -82,7 +83,24 @@ public class ConfigDocletTest {
 
     @Test
     public void defaultPath_properties() throws Exception  {
-        execute(new String[]{"--output-format=" + ConfigDoclet.OUTPUT_FORMAT_PROPERTIES});
+        String headerContent = "This is the header" + System.lineSeparator();
+        File headerFile = temporaryFolder.newFile();
+        java.nio.file.Files.write(headerFile.toPath(), headerContent.getBytes());
+//        String bottom = StringEscapeUtils.escapeHtml4("# This is the bottom" + System.lineSeparator());
+        String bottom = "This is the bottom" + System.lineSeparator();
+        String output = execute(new String[]{
+                "--output-format=" + ConfigDoclet.OUTPUT_FORMAT_PROPERTIES,
+                ConfigDoclet.OPT_HEADER, headerFile.toURI().toString(),
+                ConfigDoclet.OPT_BOTTOM, bottom,
+        });
+        output = output.trim();
+        assertTrue("starts with header", output.startsWith("#" + headerContent));
+        String expectedTail = "#" + bottom + "#";
+        if (!output.endsWith(expectedTail)) {
+            String actualTail = output.substring(output.length() - expectedTail.length() * 2);
+            System.out.format("actual tail: \"%s\"%n", StringEscapeUtils.escapeJava(actualTail));
+        }
+        assertTrue(String.format("expect at bottom: \"%s\"", StringEscapeUtils.escapeJava(expectedTail)), output.endsWith(expectedTail));
     }
 
     @Test
@@ -406,5 +424,21 @@ public class ConfigDocletTest {
                     boolean actual = predicate.test(name);
                     assertEquals("evaluation on " + name, expected, actual);
                 });
+    }
+
+    @Test
+    public void hasHeaderOption() {
+        boolean actual = new ConfigDoclet().getSupportedOptions().stream().anyMatch(option -> {
+            return option.getNames().contains(ConfigDoclet.OPT_HEADER);
+        });
+        assertTrue("has option: " + actual, actual);
+    }
+
+    @Test
+    public void hasBottomOption() {
+        boolean actual = new ConfigDoclet().getSupportedOptions().stream().anyMatch(option -> {
+            return option.getNames().contains(ConfigDoclet.OPT_BOTTOM);
+        });
+        assertTrue("has option: " + actual, actual);
     }
 }
