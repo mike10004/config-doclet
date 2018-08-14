@@ -10,6 +10,4 @@ build_script:
 
     mvn --version
 
-    mvn dependency:tree
-
     mvn install --quiet --batch-mode
