@@ -12,8 +12,8 @@
     <packaging>pom</packaging>
     <modules>
         <module>config-doclet-core</module>
-        <module>config-doclet-tests-unit</module>
         <module>config-doclet-tests-common</module>
+        <module>config-doclet-tests-integration</module>
     </modules>
     <url>https://github.com/mike10004/config-doclet</url>
     <inceptionYear>2018</inceptionYear>

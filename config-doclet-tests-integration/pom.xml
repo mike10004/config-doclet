@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>config-doclet-tests-unit</artifactId>
+    <artifactId>config-doclet-tests-integration</artifactId>
 
     <build>
         <testResources>
