@@ -1,27 +1,30 @@
 package io.github.mike10004.configdoclet;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 class GsonOutputFormatter implements OutputFormatter {
 
-    @Override
-    public void format(List<ConfigSetting> items, PrintWriter out) throws IOException {
-        try {
-            String json = toJson(items);
-            out.println(json);
-        } catch (ReflectiveOperationException e) {
-            throw new IOException(e);
-        }
+    private final Gson gson;
+
+    public GsonOutputFormatter() {
+        this(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create());
     }
 
-    static String toJson(Object object) throws ReflectiveOperationException {
-        Class<?> builderClass = Class.forName("com.google.gson.GsonBuilder");
-        Object builder = Reflections.newInstanceNoArgs(builderClass);
-        builder = Reflections.invokeNoArgs(builder, "setPrettyPrinting");
-        Object gson = Reflections.invokeNoArgs(builder, "create");
-        String json = Reflections.invokeOneArg(gson, "toJson", Object.class, object);
-        return json;
+    public GsonOutputFormatter(Gson gson) {
+        this.gson = requireNonNull(gson);
     }
+
+    @SuppressWarnings("RedundantThrows")
+    @Override
+    public void format(List<ConfigSetting> items, PrintWriter out) throws IOException {
+        gson.toJson(items, out);
+    }
+
 }
