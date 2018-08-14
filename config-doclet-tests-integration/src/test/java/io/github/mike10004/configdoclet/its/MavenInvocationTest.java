@@ -16,7 +16,9 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,7 +53,7 @@ public class MavenInvocationTest {
         InvocationRequest request = new DefaultInvocationRequest();
         request.setInputStream(new ByteArrayInputStream(new byte[0]));
         request.setPomFile(projectDir.resolve("pom.xml").toFile());
-        request.setGoals(Collections.singletonList("javadoc:javadoc"));
+        request.setGoals(Arrays.asList("javadoc:javadoc", "--quiet"));
         Properties properties = new Properties();
         properties.setProperty("java.home", System.getProperty("java.home"));
         request.setProperties(properties);
@@ -78,6 +80,11 @@ public class MavenInvocationTest {
         String content = Files.asCharSource(outputFile, UTF_8).read();
         System.out.println(content);
         assertFalse("content nonempty", content.trim().isEmpty());
+        Properties p = new Properties();
+        try (InputStream in = new FileInputStream(outputFile)) {
+            p.load(in);
+        }
+        assertEquals("output file is all properties comments", 0, p.size());
     }
 
     private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
