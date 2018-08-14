@@ -10,6 +10,23 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>config-doclet-tests-common</artifactId>
+    <properties>
+        <sampleProject.compile.mavenHome>/usr/share/maven</sampleProject.compile.mavenHome>
+        <sampleProject.compile.skip>false</sampleProject.compile.skip>
+    </properties>
+    <profiles>
+        <profile>
+            <id>skip-compile-sample-project</id>
+            <activation>
+                <file>
+                    <missing>${sampleProject.compile.mavenHome}</missing>
+                </file>
+            </activation>
+            <properties>
+                <sampleProject.compile.skip>true</sampleProject.compile.skip>
+            </properties>
+        </profile>
+    </profiles>
     <build>
         <resources>
             <resource>
@@ -27,6 +44,39 @@
                 <filtering>false</filtering>
             </resource>
         </resources>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-invoker-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <artifactId>maven-invoker-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>compile-sample-project-sources</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <cloneProjectsTo>${project.build.directory}/cloned</cloneProjectsTo>
+                            <cloneClean>true</cloneClean>
+                            <goals>
+                                <goal>test-compile</goal>
+                            </goals>
+                            <skipInvocation>${sampleProject.compile.skip}</skipInvocation>
+                            <javaHome>${java.home}</javaHome>
+                            <mavenHome>/usr/share/maven</mavenHome>
+                            <pom>${project.build.outputDirectory}/documented-project/pom.xml</pom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
     <dependencies>
         <dependency>
