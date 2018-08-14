@@ -1,5 +1,6 @@
 package io.github.mike10004.configdoclet;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -14,12 +15,15 @@ final class ConfigSetting {
     public final String description;
     public final String defaultValue;
     public final List<ExampleValue> exampleValues;
+    @Nullable
+    private final String sortKey;
 
     private ConfigSetting(Builder builder) {
         key = requireNonNull(builder.key, "key");
         description = builder.description;
         defaultValue = builder.defaultValue;
         exampleValues = Collections.unmodifiableList(requireNonNull(builder.exampleValues));
+        sortKey = builder.sortKey;
     }
 
     @Override
@@ -52,12 +56,18 @@ final class ConfigSetting {
         private final String key;
         private String description;
         private String defaultValue;
+        private String sortKey;
 
         private final List<ExampleValue> exampleValues;
 
         private Builder(String key) {
             this.key = requireNonNull(key);
             exampleValues = new ArrayList<>();
+        }
+
+        public Builder sortKey(String val) {
+            this.sortKey = val;
+            return this;
         }
 
         public Builder description(String val) {
@@ -135,10 +145,14 @@ final class ConfigSetting {
                 h.add("exampleValues[" + i + "]", exampleValues.get(i));
             }
         }
+        if (sortKey != null) {
+            h.add("sortKey", sortKey);
+        }
         return h.toString();
     }
 
-    public static Comparator<ConfigSetting> comparatorByKey() {
-        return Comparator.comparing(setting -> setting.key);
+    public String getSortKey() {
+        return sortKey == null ? key : sortKey;
     }
+
 }

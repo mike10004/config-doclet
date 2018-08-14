@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 
 public class PropertiesOutputFormatterTest {
@@ -35,4 +36,21 @@ public class PropertiesOutputFormatterTest {
         });
         assertEquals("expect all lines to start with comment char", Collections.emptyList(), violations);
     }
+
+    @Test
+    public void doNotRepeatExampleWhenNoDefaultIsSpecified() throws Exception {
+        ByteBucket bucket = new ByteBucket(1024);
+        ConfigSetting setting = ConfigSetting.builder("app.something")
+                .description("Something")
+                .exampleValue("1")
+                .exampleValue("2")
+                .build();
+        new PropertiesOutputFormatter().format(setting, bucket.printWriter(UTF_8));
+        String output = bucket.dump(UTF_8);
+        System.out.println(output);
+        List<String> lines = CharSource.wrap(output).readLines();
+        long exampleCount = lines.stream().filter(line -> line.contains("Example: ")).count();
+        assertEquals("num examples", 1, exampleCount);
+    }
+
 }

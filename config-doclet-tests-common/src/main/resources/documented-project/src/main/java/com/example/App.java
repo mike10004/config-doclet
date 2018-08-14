@@ -140,6 +140,12 @@ public class App {
     private static final String CFG_EMPTY_DEFAULT = "app.emptyDefault";
 
     /**
+     * Setting that specifies a simple boolean as its default value.
+     * @cfg.default false
+     */
+    private static final String CFG_SIMPLE_BOOLEAN_DEFAULT = "app.simpleBoolean";
+
+    /**
      * Setting that by default will not be included because it is deprecated.
      * @deprecated use something else instead
      */
@@ -149,9 +155,16 @@ public class App {
     /**
      * Setting that is annotated as deprecated but included because of default will not be included because it is deprecated.
      * @deprecated use something else instead, but use this if you have to
+     * @cfg.include
      */
     @Deprecated
     private static final String CFG_DEPRECATED_BUT_INCLUDED = "app.something.deprecated.butImportant";
+
+    /**
+     * Setting that uses an alternate sort key.
+     * @cfg.sortKey app.sortKey.alternate
+     */
+    private static final String CFG_ALTERNATE_SORT_KEY = "app.alternateSortKey";
 
     /**
      * Main method for the program.

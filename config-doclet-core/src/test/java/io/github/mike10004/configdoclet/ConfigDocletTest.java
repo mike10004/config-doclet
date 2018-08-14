@@ -2,6 +2,7 @@ package io.github.mike10004.configdoclet;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Ordering;
 import com.google.common.io.CharSource;
 import com.google.common.io.Resources;
 import com.google.gson.Gson;
@@ -13,11 +14,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -40,6 +41,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -69,27 +71,6 @@ public class ConfigDocletTest {
             this.exitCode = exitCode;
             this.stdout = stdout;
             this.stderr = stderr;
-        }
-    }
-
-    private static class ByteBucket {
-
-        private final ByteArrayOutputStream collector;
-
-        public ByteBucket(int initCapacity) {
-            collector = new ByteArrayOutputStream(initCapacity);
-        }
-
-        public OutputStream stream() {
-            return collector;
-        }
-
-        public byte[] dump() {
-            return collector.toByteArray();
-        }
-
-        public String dump(Charset charset) {
-            return new String(dump(), charset);
         }
     }
 
@@ -138,7 +119,40 @@ public class ConfigDocletTest {
             System.out.format("could not match expected settings %s%n", missing.stream().map(Pair::getLeft).map(s -> s.key).collect(Collectors.toList()));
         }
         assertEquals("expected no missing items", Collections.emptyList(), missing);
+        if (expected.size() != items.size()) {
+            System.out.format("expected: %s%n", expected.stream().map(s -> s.key).sorted().collect(Collectors.toList()));
+            System.out.format("  actual: %s%n", items.stream().map(s -> s.key).sorted().collect(Collectors.toList()));
+        }
         assertEquals("expected settings size", expected.size(), items.size());
+        if (isSortedBySortKey(items) == isSortedByConfigKey(items)) {
+            List<ConfigSetting> sortedBySortKey = sortKeyOrdering().immutableSortedCopy(items);
+            List<ConfigSetting> sortedByConfigKey = configKeyOrdering().immutableSortedCopy(items);
+            for (int i = 0; i < sortedBySortKey.size(); i++) {
+                ConfigSetting s1 = sortedByConfigKey.get(i);
+                ConfigSetting s2 = sortedBySortKey.get(i);
+                System.out.format("[%2d] %-38s %-38s %-38s %-38s%n", i, s1.key, s2.key, s1.getSortKey(), s2.getSortKey());
+            }
+        }
+        assertTrue("expect sorting by getSortKey()", isSortedBySortKey(items));
+        assertFalse("expected item to be sorted by .getSortKey() instead of .key", isSortedByConfigKey(items));
+    }
+
+    private static Ordering<ConfigSetting> sortKeyOrdering() {
+        Comparator<ConfigSetting> comp = Comparator.comparing(ConfigSetting::getSortKey);
+        return Ordering.from(comp);
+    }
+
+    private static Ordering<ConfigSetting> configKeyOrdering() {
+        Comparator<ConfigSetting> comp = Comparator.comparing(setting -> setting.key);
+        return Ordering.from(comp);
+    }
+
+    private static boolean isSortedByConfigKey(List<ConfigSetting> settings) {
+        return configKeyOrdering().isOrdered(settings);
+    }
+
+    private static boolean isSortedBySortKey(List<ConfigSetting> settings) {
+        return sortKeyOrdering().isOrdered(settings);
     }
 
     @Test
@@ -161,6 +175,19 @@ public class ConfigDocletTest {
                 .exampleValue("Feeling good, Louis!")
                 .build();
         testDefaultPathForSingleSetting("CFG_MESSAGE", expected);
+    }
+
+    @Test
+    public void defaultPath_restricted_simpleBoolean() throws Exception {
+        ConfigSetting expected = ConfigSetting.builder("app.simpleBoolean")
+                .description("Setting that specifies a simple boolean as its default value.")
+                .defaultValue("false")
+                .build();
+        ConfigSetting actual = testDefaultPathForSingleSetting("CFG_SIMPLE_BOOLEAN_DEFAULT", expected);
+        PrintWriter pw = new PrintWriter(System.out);
+        new PropertiesOutputFormatter().format(actual, pw);
+        pw.flush();
+        System.out.println();
     }
 
     @Test
@@ -199,7 +226,7 @@ public class ConfigDocletTest {
         };
         String output = execute(args);
         ConfigSetting[] settings = new Gson().fromJson(output, ConfigSetting[].class);
-        checkState(settings.length == 1);
+        checkState(settings.length == 1, "%s settings parsed (expected exactly 1)", settings.length);
         ConfigSetting actual = settings[0];
         if (!ignoreEqualityCheck) {
             if (!expected.equals(actual)) {
@@ -303,6 +330,11 @@ public class ConfigDocletTest {
         String[] allArgs = allArgsList.toArray(new String[0]);
         System.out.format("arguments: %s%n", Arrays.toString(allArgs));
         ToolResult result = invokeJavadocStart(allArgs);
+        if (result.exitCode != 0) {
+            System.out.format("exit code %s%n", result.exitCode);
+            System.out.format("==== stdout ====%n%s%n==== end stdout ====%n%n", result.stdout.dump(Charset.defaultCharset()));
+            System.out.format("==== stderr ====%n%s%n==== end stderr ====%n%n", result.stderr.dump(Charset.defaultCharset()));
+        }
         assertEquals("exit code", 0, result.exitCode);
         Collection<File> filesInOutputDir = org.apache.commons.io.FileUtils.listFiles(outputDir, null, true);
         assertEquals("one file in output dir", 1, filesInOutputDir.size());

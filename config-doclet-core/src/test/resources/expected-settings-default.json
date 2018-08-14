@@ -87,5 +87,21 @@
         "value": "bar"
       }
     ]
+  },
+  {
+    "key": "app.alternateSortKey",
+    "description": "Setting that uses an alternate sort key.",
+    "exampleValues": []
+  },
+  {
+    "key": "app.something.deprecated.butImportant",
+    "description": "Setting that is annotated as deprecated but included because of default will not be included because it is deprecated.",
+    "exampleValues": []
+  },
+  {
+    "key": "app.simpleBoolean",
+    "description": "Setting that specifies a simple boolean as its default value.",
+    "defaultValue": "false",
+    "exampleValues": []
   }
 ]

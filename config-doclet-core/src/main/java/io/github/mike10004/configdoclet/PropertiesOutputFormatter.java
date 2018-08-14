@@ -30,6 +30,7 @@ class PropertiesOutputFormatter implements OutputFormatter {
         return value;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static String trimLeadingFrom(String str, char ch) {
         for (int i = 0; i < str.length(); i++) {
             if (str.charAt(i) != ch) {
@@ -50,9 +51,12 @@ class PropertiesOutputFormatter implements OutputFormatter {
             StringEscaping.writePropertyComment(desc, out);
         }
         if (!setting.exampleValues.isEmpty()) {
-            for (ConfigSetting.ExampleValue example : setting.exampleValues) {
-                String exampleStr = formatExample(example);
-                StringEscaping.writePropertyComment(exampleStr, out);
+            for (int i = 0; i < setting.exampleValues.size(); i++) {
+                ConfigSetting.ExampleValue example = setting.exampleValues.get(i);
+                if (i > 0 || setting.defaultValue != null) {
+                    String exampleStr = formatExample(example);
+                    StringEscaping.writePropertyComment(exampleStr, out);
+                }
             }
         }
         String value = getAssignedValue(setting);

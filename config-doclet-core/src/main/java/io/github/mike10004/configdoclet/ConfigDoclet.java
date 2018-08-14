@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -71,6 +73,7 @@ public class ConfigDoclet implements Doclet {
     static final String TAG_CFG_DEFAULT_VALUE = "cfg.default";
     static final String TAG_CFG_KEY = "cfg.key";
     static final String TAG_CFG_INCLUDE = "cfg.include";
+    static final String TAG_CFG_SORT_KEY = "cfg.sortKey";
 
     private Reporter reporter;
     private final Optionage optionage;
@@ -86,13 +89,18 @@ public class ConfigDoclet implements Doclet {
         this.optionage = requireNonNull(optionage);
     }
 
+    static Comparator<ConfigSetting> settingOrdering() {
+        return Comparator.comparing(ConfigSetting::getSortKey)
+                .thenComparing(s -> s.key);
+    }
+
     @Override
     public void init(Locale locale, Reporter reporter) {
         this.reporter = reporter;
     }
 
     Set<String> buildActionableTagSet() {
-        return Set.of(TAG_CFG_DEFAULT_VALUE, TAG_CFG_DESCRIPTION, TAG_CFG_EXAMPLE, TAG_CFG_KEY);
+        return Set.of(TAG_CFG_DEFAULT_VALUE, TAG_CFG_DESCRIPTION, TAG_CFG_EXAMPLE, TAG_CFG_KEY, TAG_CFG_SORT_KEY, TAG_CFG_INCLUDE);
     }
 
     private static boolean isPrintExtraDiagnostics() {
@@ -310,7 +318,7 @@ public class ConfigDoclet implements Doclet {
     @Nullable
     private String extractConfigKey(VariableElement element, DocCommentTree docCommentTree) {
         Object constValue = element.getConstantValue();
-        if (constValue == null) {
+        if (constValue == null && docCommentTree != null) {
             constValue = docCommentTree.getBlockTags().stream()
                     .filter(tree -> ConfigDoclet.isCfgTag(tree, TAG_CFG_KEY))
                     .filter(UnknownBlockTagTree.class::isInstance)
@@ -392,9 +400,21 @@ public class ConfigDoclet implements Doclet {
         }
     }
 
+    private void maybeWarnAboutDuplicates(List<ConfigSetting> settings) {
+        List<String> allKeys =  settings.stream().map(s -> s.key).collect(Collectors.toList());
+        Set<String> uniqueKeys = new HashSet<>(allKeys);
+        int numDupes = settings.size() - uniqueKeys.size();
+        if (numDupes > 0) {
+            reporter.print(Diagnostic.Kind.WARNING, String.format("%s duplicate key(s) to be documented", numDupes));
+            Set<String> dupes = allKeys.stream().filter(key -> allKeys.stream().filter(key::equals).count() > 1).collect(Collectors.toSet());
+            extraDiagnostic(Diagnostic.Kind.WARNING, () -> String.format("duplicate keys: %s", dupes.stream().collect(Collectors.joining(System.lineSeparator()))));
+        }
+    }
+
     protected boolean produceOutput(List<ConfigSetting> items) {
         reporter.print(Diagnostic.Kind.NOTE, String.format("writing help output on %d settings", items.size()));
-        items = items.stream().sorted(ConfigSetting.comparatorByKey()).collect(Collectors.toList());
+        maybeWarnAboutDuplicates(items);
+        items = items.stream().sorted(settingOrdering()).collect(Collectors.toList());
         OutputFormatter formatter = getOutputFormatter();
         File outputFile = resolveOutputPath().toFile();
         if (!outputFile.getParentFile().isDirectory()) {
@@ -438,11 +458,26 @@ public class ConfigDoclet implements Doclet {
                 addExample(node);
             } else if (TAG_CFG_DEFAULT_VALUE.equals(tagName)) {
                 addDefault(node);
+            }  else if (TAG_CFG_SORT_KEY.equals(tagName)) {
+                addSortKey(node);
+            } else //noinspection StatementWithEmptyBody
+                if (TAG_CFG_INCLUDE.equals(tagName)) {
+                // nothing to do
             } else {
                 log.warning(() -> String.format("unsupported tag %s", node.getTagName()));
             }
             //noinspection RedundantCast
             return (Void) null;
+        }
+
+        private void addSortKey(BlockTagTree node) {
+            String sortKey = simpleRenderer.render(Collections.singleton(node));
+            if (sortKey != null) {
+                sortKey = sortKey.trim();
+                if (!sortKey.isEmpty()) {
+                    itemBuilder.sortKey(sortKey);
+                }
+            }
         }
 
         private void addExample(BlockTagTree node) {
