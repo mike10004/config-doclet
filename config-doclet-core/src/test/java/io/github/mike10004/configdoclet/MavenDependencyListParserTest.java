@@ -2,6 +2,7 @@ package io.github.mike10004.configdoclet;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.io.StringReader;
 import java.util.List;
 
@@ -21,6 +22,6 @@ public class MavenDependencyListParserTest {
         List<MavenRepositoryItem> items = new MavenDependencyListParser().parseList(new StringReader(text));
         MavenRepositoryItem item0 = items.get(0);
         assertNotNull(item0.artifactPathname);
-        assertEquals("/home/mike/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar", item0.artifactPathname.getAbsolutePath());
+        assertEquals(new File("/home/mike/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar"), item0.artifactPathname);
     }
 }
