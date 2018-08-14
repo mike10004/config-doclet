@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharSource;
 import com.google.common.io.Resources;
 import com.google.gson.Gson;
-import io.github.mike10004.configdoclet.unit.SampleProject;
+import io.github.mike10004.configdoclet.tests.SampleProject;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Rule;

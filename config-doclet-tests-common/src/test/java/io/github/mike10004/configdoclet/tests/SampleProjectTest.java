@@ -1,4 +1,4 @@
-package io.github.mike10004.configdoclet.unit;
+package io.github.mike10004.configdoclet.tests;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;

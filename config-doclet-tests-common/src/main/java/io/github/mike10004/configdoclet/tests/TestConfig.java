@@ -1,4 +1,4 @@
-package io.github.mike10004.configdoclet.unit;
+package io.github.mike10004.configdoclet.tests;
 
 import com.google.common.base.Suppliers;
 import com.google.common.cache.CacheBuilder;

@@ -1,4 +1,6 @@
-package io.github.mike10004.configdoclet.unit;
+package io.github.mike10004.configdoclet.its;
+
+import io.github.mike10004.configdoclet.tests.TestConfig;
 
 public class Tests {
 

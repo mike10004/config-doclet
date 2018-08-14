@@ -1,6 +1,8 @@
-package io.github.mike10004.configdoclet.unit;
+package io.github.mike10004.configdoclet.its;
 
 import com.google.common.io.Files;
+import io.github.mike10004.configdoclet.tests.SampleProject;
+import io.github.mike10004.configdoclet.tests.TestConfig;
 import org.apache.maven.shared.invoker.DefaultInvocationRequest;
 import org.apache.maven.shared.invoker.DefaultInvoker;
 import org.apache.maven.shared.invoker.InvocationRequest;
