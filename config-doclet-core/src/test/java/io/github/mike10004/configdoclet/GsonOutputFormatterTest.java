@@ -1,20 +1,28 @@
 package io.github.mike10004.configdoclet;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.gson.GsonBuilder;
+import com.google.gson.Gson;
 import org.junit.Test;
 
-import java.util.Map;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class GsonOutputFormatterTest {
 
     @Test
-    public void toJson() throws Exception {
-        Map<String, Integer> m = ImmutableMap.of("a", 1, "b", 2);
-        String json = GsonOutputFormatter.toJson(m);
-        String expected = new GsonBuilder().setPrettyPrinting().create().toJson(m);
-        assertEquals("json", expected, json);
+    public void format() throws Exception {
+        List<ConfigSetting> settings = List.of(
+                ConfigSetting.builder("a").exampleValue("b").build(),
+                ConfigSetting.builder("c").description("d").build()
+        );
+        StringWriter sw = new StringWriter();
+        try (PrintWriter out = new PrintWriter(sw)) {
+            new GsonOutputFormatter().format(settings, out);
+        }
+        ConfigSetting[] deserialized = new Gson().fromJson(sw.toString(), ConfigSetting[].class);
+        assertEquals("deserialized", settings, Arrays.asList(deserialized));
     }
 }
