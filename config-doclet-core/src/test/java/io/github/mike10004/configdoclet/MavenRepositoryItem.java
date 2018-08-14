@@ -13,9 +13,13 @@ public class MavenRepositoryItem {
     @Nullable
     public final File artifactPathname;
 
-    public MavenRepositoryItem(MavenDependency dependency, @Nullable File artifactPathname) {
+    @Nullable
+    final String rawPathname;
+
+    MavenRepositoryItem(MavenDependency dependency, @Nullable File artifactPathname, @Nullable String rawPathname) {
         this.dependency = requireNonNull(dependency);
         this.artifactPathname = artifactPathname;
+        this.rawPathname = rawPathname;
     }
 
     @Override
@@ -24,12 +28,13 @@ public class MavenRepositoryItem {
         if (!(o instanceof MavenRepositoryItem)) return false;
         MavenRepositoryItem that = (MavenRepositoryItem) o;
         return Objects.equals(dependency, that.dependency) &&
-                Objects.equals(artifactPathname, that.artifactPathname);
+                Objects.equals(artifactPathname, that.artifactPathname) &&
+                Objects.equals(rawPathname, that.rawPathname);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(dependency, artifactPathname);
+        return Objects.hash(dependency, artifactPathname, rawPathname);
     }
 
     @Override
@@ -37,6 +42,7 @@ public class MavenRepositoryItem {
         return "MavenRepositoryItem{" +
                 "dependency=" + dependency +
                 ", artifactPathname=" + artifactPathname +
+                ", rawPathname='" + rawPathname + '\'' +
                 '}';
     }
 }

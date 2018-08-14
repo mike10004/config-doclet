@@ -33,13 +33,14 @@ public class MavenDependencyListParser {
     }
 
     private static final String TOKEN_SPLITTER_REGEX = ":";
+    private static final int MAX_ARTIFACT_TOKENS = 6;
 
     protected MavenRepositoryItem parseLine(String line) {
         line = line.split("\\s*--\\s*", 2)[0];
         if (line.matches(".*\\Q (optional)\\E")) {
             line = StringUtils.removeEnd(line, " (optional)");
         }
-        Iterator<String> tokens = Arrays.asList(line.split(TOKEN_SPLITTER_REGEX)).iterator();
+        Iterator<String> tokens = Arrays.asList(line.split(TOKEN_SPLITTER_REGEX, MAX_ARTIFACT_TOKENS)).iterator();
         // e.g. "org.hamcrest:hamcrest-core:jar:1.3:test"
         checkState(tokens.hasNext(), "empty: %s", line);
         String groupId = tokens.next();
@@ -51,14 +52,14 @@ public class MavenDependencyListParser {
         String version = tokens.next();
         checkState(tokens.hasNext(), "scope: %s", line);
         String scope = tokens.next();
-        @Nullable String artifactFilePathname = null;
+        @Nullable String rawArtifactPathname = null;
         if (tokens.hasNext()) {
-            artifactFilePathname = tokens.next();
+            rawArtifactPathname = tokens.next();
         }
-        Optional<File> f = Optional.ofNullable(artifactFilePathname).map(File::new);
+        Optional<File> f = Optional.ofNullable(rawArtifactPathname).map(File::new);
         MavenCoordinates coords = new MavenCoordinates(groupId, artifactId, version, null);
         MavenDependency dep = new MavenDependency(coords, type, scope);
-        return new MavenRepositoryItem(dep, f.orElse(null));
+        return new MavenRepositoryItem(dep, f.orElse(null), rawArtifactPathname);
     }
 
     private class ListLineParser {
