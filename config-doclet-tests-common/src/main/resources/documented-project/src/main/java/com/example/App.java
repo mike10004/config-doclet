@@ -97,6 +97,30 @@ public class App {
     }
 
     /**
+     * Class that is nested and public.
+     */
+    public static class PublicInnerClass {
+
+        /**
+         * Setting that is defined in a public nested class.
+         */
+        private static final String CFG_PUBLIC_NESTED_CLASS_SETTING = "cfg.nestedClass.public.foo";
+
+    }
+
+    /**
+     * Class that is nested and private.
+     * @see PublicInnerClass
+     */
+    private static class PrivateNestedClass {
+
+        /**
+         * Setting that is defined in a private nested class.
+         */
+        private static final String CFG_PRIVATE_NESTED_CLASS_SETTING = "cfg.nestedClass.private.bar";
+    }
+
+    /**
      * Main method for the program.
      * @param args argument array
      */

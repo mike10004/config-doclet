@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -55,6 +56,7 @@ public class ConfigDoclet implements Doclet {
 
     private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
 
+    static final String SYSPROP_PRINT_EXTRA_DIAGNOSTICS = "configdoclet.diagnostics.extras.print";
     static final String OPT_OUTPUT_DIRECTORY = "-d";
     static final String OPT_OUTPUT_FILENAME = "--output-filename";
     static final String OPT_FIELD_NAME_PATTERN = "--field-pattern";
@@ -89,6 +91,21 @@ public class ConfigDoclet implements Doclet {
 
     Set<String> buildActionableTagSet() {
         return Set.of(TAG_CFG_DEFAULT_VALUE, TAG_CFG_DESCRIPTION, TAG_CFG_EXAMPLE);
+    }
+
+    private static boolean isPrintExtraDiagnostics() {
+        return Boolean.parseBoolean(System.getProperty(SYSPROP_PRINT_EXTRA_DIAGNOSTICS));
+    }
+
+    private void extraDiagnostic(Supplier<String> supplier) {
+        extraDiagnostic(Diagnostic.Kind.NOTE, supplier);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private void extraDiagnostic(Diagnostic.Kind kind, Supplier<String> supplier) {
+        if (isPrintExtraDiagnostics()) {
+            reporter.print(kind, supplier.get());
+        }
     }
 
     static List<String> tokenizePatterns(String untokenizedPatterns) {
@@ -226,7 +243,8 @@ public class ConfigDoclet implements Doclet {
         List<VariableElement> relevantFields = variableElements.stream()
                 .filter(element -> isActionableEnclosedElement(element, namePredicate))
                 .collect(Collectors.toList());
-        reporter.print(Diagnostic.Kind.NOTE, String.format("%d of %d variable elements are actionable (used name predicate %s)", relevantFields.size(), variableElements.size(), namePredicate));
+        reporter.print(Diagnostic.Kind.NOTE, String.format("%d of %d variable elements are relevant (used name predicate %s)", relevantFields.size(), variableElements.size(), namePredicate));
+        extraDiagnostic(() -> String.format("relevant fields: %s", relevantFields));
         relevantFields.forEach(enclosed -> {
                     log.log(defaultLevel, () -> String.format("enclosed: kind=%s; name=%s", enclosed.getKind(), enclosed.getSimpleName()));
                     DocCommentTree tree = environment.getDocTrees().getDocCommentTree(enclosed);
@@ -286,17 +304,16 @@ public class ConfigDoclet implements Doclet {
     }
 
     private void maybeDumpAllVariables(List<VariableElement> variableElements) {
-        if (!Boolean.parseBoolean(System.getProperty("configdoclet.dumpAllVariableElements"))) {
-            return;
-        }
-        String elementsDebug = variableElements.stream()
-                .map(el -> new ToStringHelper(el)
-                        .add("kind", el.getKind())
-                        .add("modifiers", el.getModifiers())
-                        .add("name", el.getSimpleName().toString())
-                        .toString())
-                .collect(Collectors.joining(System.lineSeparator()));
-        reporter.print(Diagnostic.Kind.NOTE, String.format("debug variable elements:%n%s%n", elementsDebug));
+        extraDiagnostic(Diagnostic.Kind.NOTE, () -> {
+            String elementsDebug = variableElements.stream()
+                    .map(el -> new ToStringHelper(el)
+                            .add("kind", el.getKind())
+                            .add("modifiers", el.getModifiers())
+                            .add("name", el.getSimpleName().toString())
+                            .toString())
+                    .collect(Collectors.joining(System.lineSeparator()));
+            return String.format("debug variable elements:%n%s%n", elementsDebug);
+        });
     }
 
     private ConfigSetting.Builder prepareBuilder(@SuppressWarnings("unused") VariableElement element, Object constValue) {

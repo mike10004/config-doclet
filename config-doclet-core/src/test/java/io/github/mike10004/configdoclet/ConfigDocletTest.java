@@ -109,10 +109,20 @@ public class ConfigDocletTest {
         String output = execute(new String[]{"--output-format=" + ConfigDoclet.OUTPUT_FORMAT_JSON});
         List<ConfigSetting> items = Arrays.asList(new Gson().fromJson(output, ConfigSetting[].class));
         assertNotNull("deserialized", items);
-        Stream<String> required = Stream.of("app.server.attire", "app.choice.default", "app.undocumentedSetting");
+        Stream<String> required = Stream.of(
+                "app.server.attire",
+                "app.choice.default",
+                "app.undocumentedSetting",
+                "cfg.nestedClass.private.bar",
+                "cfg.nestedClass.public.foo"
+        );
+        List<String> absentRequired = new ArrayList<>();
         required.forEach(settingKey -> {
-            assertTrue("setting " + settingKey, items.stream().anyMatch(setting -> settingKey.equals(setting.key)));
+            if (items.stream().noneMatch(setting -> settingKey.equals(setting.key))) {
+                absentRequired.add(settingKey);
+            }
         });
+        assertEquals("expected but absent", Collections.emptyList(), absentRequired);
         List<Pair<ConfigSetting, ConfigSetting>> missing = new ArrayList<>();
         Set<ConfigSetting> expected = loadExpectedSettingsDefault();
         expected.forEach(setting -> {
@@ -244,6 +254,8 @@ public class ConfigDocletTest {
         return execute(moreArgs, new String[]{"com.example"});
     }
 
+    private static final boolean PRINT_EXTRA_DIAGNOSTICS = true;
+
     private String execute(String[] moreArgs, String[] packages) throws Exception  {
         File sourcepath = prepareProject().toPath().resolve("src/main/java").toFile();
         System.out.format("using sourcepath %s%n", sourcepath);
@@ -251,6 +263,7 @@ public class ConfigDocletTest {
         String docletClasspath = classpathSupplier.get();
         File outputDir = temporaryFolder.newFolder();
         System.out.format("docletClasspath = %s%n", docletClasspath);
+        System.setProperty(ConfigDoclet.SYSPROP_PRINT_EXTRA_DIAGNOSTICS, String.valueOf(PRINT_EXTRA_DIAGNOSTICS));
         String[] commonArgs = {"-doclet", ConfigDoclet.class.getName(),
                 "-docletpath", docletClasspath,
                 "-charset", "UTF-8",
