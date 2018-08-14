@@ -264,7 +264,9 @@ public class ConfigDocletTest {
         File outputDir = temporaryFolder.newFolder();
         System.out.format("docletClasspath = %s%n", docletClasspath);
         System.setProperty(ConfigDoclet.SYSPROP_PRINT_EXTRA_DIAGNOSTICS, String.valueOf(PRINT_EXTRA_DIAGNOSTICS));
-        String[] commonArgs = {"-doclet", ConfigDoclet.class.getName(),
+        String[] commonArgs = {
+                "-private",
+                "-doclet", ConfigDoclet.class.getName(),
                 "-docletpath", docletClasspath,
                 "-charset", "UTF-8",
                 "-sourcepath", sourcepath.getAbsolutePath(),

@@ -228,7 +228,9 @@ public class ConfigDoclet implements Doclet {
     @Override
     public boolean run(DocletEnvironment environment) {
         List<ConfigSetting> items = Collections.synchronizedList(new ArrayList<>());
-        List<VariableElement> variableElements = environment.getIncludedElements().stream()
+        Set<? extends Element> includedElements = environment.getIncludedElements();
+        maybeDumpAll("included elements", includedElements);
+        List<VariableElement> variableElements = includedElements.stream()
                 .filter(this::isActionableEnclosingElement)
                 .filter(TypeElement.class::isInstance)
                 .map(e -> (TypeElement) e)
@@ -239,12 +241,12 @@ public class ConfigDoclet implements Doclet {
         LinkResolver linkResolver = new CollectionLinkResolver(variableElements);
         Set<String> actionableTags = buildActionableTagSet();
         Predicate<? super CharSequence> namePredicate = constructElementNamePredicate();
-        maybeDumpAllVariables(variableElements);
+        maybeDumpAll("variable elements", variableElements);
         List<VariableElement> relevantFields = variableElements.stream()
                 .filter(element -> isActionableEnclosedElement(element, namePredicate))
                 .collect(Collectors.toList());
         reporter.print(Diagnostic.Kind.NOTE, String.format("%d of %d variable elements are relevant (used name predicate %s)", relevantFields.size(), variableElements.size(), namePredicate));
-        extraDiagnostic(() -> String.format("relevant fields: %s", relevantFields));
+        maybeDumpAll("relevant and actionable elements", relevantFields);
         relevantFields.forEach(enclosed -> {
                     log.log(defaultLevel, () -> String.format("enclosed: kind=%s; name=%s", enclosed.getKind(), enclosed.getSimpleName()));
                     DocCommentTree tree = environment.getDocTrees().getDocCommentTree(enclosed);
@@ -303,7 +305,7 @@ public class ConfigDoclet implements Doclet {
         return others;
     }
 
-    private void maybeDumpAllVariables(List<VariableElement> variableElements) {
+    private void maybeDumpAll(String tag, Collection<? extends Element> variableElements) {
         extraDiagnostic(Diagnostic.Kind.NOTE, () -> {
             String elementsDebug = variableElements.stream()
                     .map(el -> new ToStringHelper(el)
@@ -312,7 +314,7 @@ public class ConfigDoclet implements Doclet {
                             .add("name", el.getSimpleName().toString())
                             .toString())
                     .collect(Collectors.joining(System.lineSeparator()));
-            return String.format("debug variable elements:%n%s%n", elementsDebug);
+            return String.format("%s:%n%s%n", tag, elementsDebug);
         });
     }
 

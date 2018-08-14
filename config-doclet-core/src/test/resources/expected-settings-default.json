@@ -59,5 +59,15 @@
         "value": "/home/elizabeth/Documents/cool.txt"
       }
     ]
+  },
+  {
+    "key": "cfg.nestedClass.private.bar",
+    "description": "Setting that is defined in a private nested class.",
+    "exampleValues": []
+  },
+  {
+    "key": "cfg.nestedClass.public.foo",
+    "description": "Setting that is defined in a public nested class.",
+    "exampleValues": []
   }
 ]
