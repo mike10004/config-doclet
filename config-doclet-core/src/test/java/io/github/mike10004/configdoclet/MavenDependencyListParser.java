@@ -1,5 +1,7 @@
 package io.github.mike10004.configdoclet;
 
+import org.apache.commons.lang3.StringUtils;
+
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.File;
@@ -12,9 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static java.util.Objects.requireNonNull;
 
 public class MavenDependencyListParser {
 

@@ -3,6 +3,7 @@ package io.github.mike10004.configdoclet;
 import com.sun.source.doctree.BlockTagTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collection;
 

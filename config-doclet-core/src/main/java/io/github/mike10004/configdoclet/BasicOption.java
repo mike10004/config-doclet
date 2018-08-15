@@ -1,6 +1,7 @@
 package io.github.mike10004.configdoclet;
 
 import jdk.javadoc.doclet.Doclet;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;

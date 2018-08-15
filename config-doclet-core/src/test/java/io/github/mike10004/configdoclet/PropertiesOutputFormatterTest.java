@@ -29,7 +29,7 @@ public class PropertiesOutputFormatterTest {
         List<String> violations = new ArrayList<>();
         lines.forEach(line -> {
             if (!line.trim().isEmpty()) {
-                if (!line.startsWith(StringEscaping.getPropertyCommentPrefix())) {
+                if (!line.startsWith(PropertiesOutputFormatter.JAVA_PROPERTIES_COMMENT_PREFIX)) {
                     violations.add(line);
                 }
             }
