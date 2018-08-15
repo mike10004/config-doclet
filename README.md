@@ -83,6 +83,8 @@ Doclet Options
 Using as a Maven plugin
 -----------------------
 
+This is not a Maven plugin, but the **maven-javadoc-plugin** can be configured to use this doclet.
+
     <build>
         <plugins>
             <plugin>
@@ -115,7 +117,12 @@ Using as a Maven plugin
     </build>
 
 This will generate a file named `target/help/config-doclet-output.properties` in your 
-project directory.     
+project directory.
+
+If you are also generating regular API docs, you may need to add some 
+configuration parameters to ignore this doclet's tags (which all have prefix 
+`cfg.`), or use `<doclint>none</doclint>` to ignore non-fatal errors during 
+Javadoc generation.
 
 Run from the command line
 -------------------------
