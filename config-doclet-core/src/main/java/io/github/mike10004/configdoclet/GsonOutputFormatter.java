@@ -27,4 +27,7 @@ class GsonOutputFormatter implements OutputFormatter {
         gson.toJson(items, out);
     }
 
+    public static Factory factory() {
+        return Factory.forCode("json", optionage -> new GsonOutputFormatter());
+    }
 }

@@ -3,6 +3,7 @@ package io.github.mike10004.configdoclet;
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.StandardDoclet;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -10,7 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -28,28 +29,22 @@ class CliOptionage implements Optionage {
         this.processage = requireNonNull(processage);
     }
 
-    private <T> T getOptionValue(String name, Function<List<String>, T> parser, T defaultValue) {
+    @Nullable
+    @Override
+    public List<String> getOptionStrings(String name) {
         Doclet.Option target = this.options.stream().filter(option -> {
             return option.getNames().contains(name);
-        }).findFirst().orElseThrow(() -> new IllegalArgumentException("no option by name " + name));
+        }).findFirst().orElseThrow(() -> new IllegalArgumentException("not a supported option: " + name));
         List<String> allNames = target.getNames();
         for (String key : this.processage.keySet()) {
             if (allNames.contains(key)) {
                 List<String> args = this.processage.get(key);
-                return parser.apply(args);
+                if (args != null) {
+                    return args;
+                }
             }
         }
-        return defaultValue;
-    }
-
-    @Override
-    public String getOptionString(String name, String defaultValue) {
-        return getOptionValue(name, list -> list.get(0), defaultValue);
-    }
-
-    @SuppressWarnings("unused")
-    protected boolean isSupported(Doclet.Option option) {
-        return true;
+        return null;
     }
 
     private static Set<Doclet.Option> deconflict(Set<? extends Doclet.Option> superset, Set<? extends Doclet.Option> preferred) {
@@ -89,9 +84,9 @@ class CliOptionage implements Optionage {
                         .arg("<jsonfile>")
                         .description("append the settings parsed from json output of this doclet in specified file")
                         .build(),
-                BasicOption.builder(ConfigDoclet.OPT_ASSIGNATION_MODE, processor)
-                        .arg("<string>")
-                        .description("one of {'auto', 'always', 'never'}: specifies whether the value assignation in the output properties file is commented")
+                BasicOption.builder(ConfigDoclet.OPT_ASSIGNATION_HINT, processor)
+                        .arg("<auto|always|never>")
+                        .description("in properties output, specifies whether the value assignation in the output properties file is commented")
                         .build(),
         }));
     }
@@ -101,21 +96,21 @@ class CliOptionage implements Optionage {
         return options;
     }
 
-    static boolean isSupportedHere(Doclet.Option option) {
-        return true;
+    public static CliOptionage standard() {
+        return standard(x -> true);
     }
 
-    public static CliOptionage standard() {
+    public static CliOptionage standard(Predicate<? super Doclet.Option> supportPredicate) {
         Processage processage = Processage.fromMap(new HashMap<>());
-        Set<Doclet.Option> options = createOptionSet(processage);
+        Set<Doclet.Option> options = createOptionSet(supportPredicate, processage);
         return new CliOptionage(options, processage);
     }
 
-    private static Set<Doclet.Option> createOptionSet(Processage processage) {
+    private static Set<Doclet.Option> createOptionSet(Predicate<? super Doclet.Option> supportPredicate, Processage processage) {
         // TODO add option for element name predicate
         //noinspection RedundantStreamOptionalCall
         Set<? extends Doclet.Option> defaultOptions = new StandardDoclet().getSupportedOptions().stream()
-                .filter(CliOptionage::isSupportedHere)
+                .filter(supportPredicate)
                 .map(option -> wrap(option, processage))
                 .collect(Collectors.toSet());
         Set<? extends Doclet.Option> internalOptions = getInternalOptions(processage);

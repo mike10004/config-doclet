@@ -91,7 +91,7 @@ public class ConfigDocletTest {
         String output = execute(new String[]{
                 "--output-format=" + ConfigDoclet.OUTPUT_FORMAT_PROPERTIES,
                 ConfigDoclet.OPT_HEADER, headerFile.toURI().toString(),
-                ConfigDoclet.OPT_BOTTOM, bottom,
+                ConfigDoclet.OPT_FOOTER, bottom,
         });
         output = output.trim();
         assertTrue("starts with header", output.startsWith("#" + headerContent));
@@ -437,7 +437,7 @@ public class ConfigDocletTest {
     @Test
     public void hasBottomOption() {
         boolean actual = new ConfigDoclet().getSupportedOptions().stream().anyMatch(option -> {
-            return option.getNames().contains(ConfigDoclet.OPT_BOTTOM);
+            return option.getNames().contains(ConfigDoclet.OPT_FOOTER);
         });
         assertTrue("has option: " + actual, actual);
     }

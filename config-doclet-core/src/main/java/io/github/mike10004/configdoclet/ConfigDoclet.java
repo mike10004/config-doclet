@@ -25,8 +25,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -68,9 +66,10 @@ public class ConfigDoclet implements Doclet {
     static final String OPT_OUTPUT_FORMAT = "-outputformat";
     static final String OPT_APPEND_SETTINGS = "--append-settings";
     static final String OPT_HEADER = "-header"; // piggyback on standard doclet setting
-    static final String OPT_BOTTOM = "-footer"; // piggyback on standard doclet setting
-    static final String OPT_ASSIGNATION_MODE = "--assign-value";
+    static final String OPT_FOOTER = "-footer"; // piggyback on standard doclet setting
+    static final String OPT_ASSIGNATION_HINT = "--assign-value";
     static final String OUTPUT_FORMAT_PROPERTIES = "properties";
+    private static final String DEFAULT_OUTPUT_FORMAT = OUTPUT_FORMAT_PROPERTIES;
     static final String OUTPUT_FORMAT_JSON = "json";
     static final IOCase DEFAULT_PATTERN_CASE_SENSITIVITY = IOCase.SENSITIVE;
     static final String TAG_CFG_DESCRIPTION = "cfg.description";
@@ -87,7 +86,21 @@ public class ConfigDoclet implements Doclet {
      * Constructs an instance of the class.
      */
     public ConfigDoclet() {
-        this(Optionage.compose(CliOptionage.standard(), PropertyOptionage.system()));
+        this(Optionage.compose(CliOptionage.standard(createOptionSupportPredicate()), PropertyOptionage.system()));
+    }
+
+    static Set<String> optionNamesNotSupported() {
+        return Set.of("-group", "-javafx", "--javafx", "-keywords");
+    }
+
+    private static Predicate<? super Option> createOptionSupportPredicate() {
+        // TODO reduce the interface size by removing support for some StandardDoclet options;
+        //      retain support for those that the maven-javadoc-plugin specifies under its default settings
+        Set<String> optionNamesNotSupported = optionNamesNotSupported();
+        return option -> {
+            List<String> names = option.getNames();
+            return names.stream().noneMatch(optionNamesNotSupported::contains);
+        };
     }
 
     ConfigDoclet(Optionage optionage) {
@@ -261,8 +274,16 @@ public class ConfigDoclet implements Doclet {
         }
     }
 
+    private Stream<? extends Doclet.Option> streamPresentOptions() {
+        return optionage.getSupportedOptions().stream()
+                .filter(opt -> optionage.isPresent(opt.getNames().get(0)));
+    }
+
     @Override
     public boolean run(DocletEnvironment environment) {
+        extraDiagnostic(() -> String.format("options active: %s", streamPresentOptions()
+                .map(opt -> opt.getNames().get(0))
+                .collect(Collectors.toList())));
         List<ConfigSetting> items = Collections.synchronizedList(new ArrayList<>());
         Set<? extends Element> includedElements = environment.getIncludedElements();
         maybeDumpAll("included elements", includedElements);
@@ -392,59 +413,20 @@ public class ConfigDoclet implements Doclet {
         return StandardCharsets.UTF_8;
     }
 
-    private PropertiesOutputFormatter.AssignationMode getAssignationMode() {
-        String token = optionage.getOptionString(OPT_ASSIGNATION_MODE, null);
-        return PropertiesOutputFormatter.AssignationMode.parse(token);
+    private Iterable<OutputFormatter.Factory> getOutputFormatterFactories() {
+        return Arrays.asList(PropertiesOutputFormatter.factory(reporter),
+                GsonOutputFormatter.factory());
     }
 
-    protected OutputFormatter getOutputFormatter() {
+    protected OutputFormatter produceOutputFormatter() {
+        Iterable<OutputFormatter.Factory> factories = getOutputFormatterFactories();
         String format = optionage.getOptionString(OPT_OUTPUT_FORMAT, OUTPUT_FORMAT_PROPERTIES);
-        switch (format) {
-            case OUTPUT_FORMAT_PROPERTIES:
-                return new PropertiesOutputFormatter(readHeader(), readBottom(), getAssignationMode());
-            case OUTPUT_FORMAT_JSON:
-                return new GsonOutputFormatter();
-            default:
-                throw new IllegalArgumentException("invalid output format");
-
-        }
-    }
-
-    private String readHeader() {
-        @Nullable String headerSpecification = optionage.getOptionString(OPT_HEADER, null);
-        return readBookend(headerSpecification);
-    }
-
-    private String readBottom() {
-        @Nullable String bottomSpecification = optionage.getOptionString(OPT_BOTTOM, null);
-        return readBookend(bottomSpecification);
-    }
-
-    static final String FILE_URL_INDICATOR = "file:";
-
-    // TODO support option to specify -header or -bottom charset
-    private Charset getBookendCharset() {
-        return Charset.defaultCharset();
-    }
-
-    private String readBookend(@Nullable String specification) {
-        String content = "";
-        if (specification != null) {
-            if (specification.startsWith(FILE_URL_INDICATOR)) {
-                try {
-                    File sourceFile = new File(new URI(specification));
-                    byte[] bytes = java.nio.file.Files.readAllBytes(sourceFile.toPath());
-                    content = new String(bytes, getBookendCharset());
-                } catch (IOException | URISyntaxException e) {
-                    log.log(Level.WARNING, e, () -> "failed to read from source file " + specification);
-                    reporter.print(Diagnostic.Kind.WARNING, "failed to read from header/bottom source file " + specification);
-                }
-            } else {
-//                content = org.apache.commons.lang3.StringEscapeUtils.unescapeHtml4(specification);
-                content = specification;
+        for (OutputFormatter.Factory factory : factories) {
+            if (factory.isSpecifiedByFormatCode(format)) {
+                return factory.produce(optionage);
             }
         }
-        return content;
+        throw new IllegalStateException("default output format " + DEFAULT_OUTPUT_FORMAT + " does not specify any known formatter factory among " + factories);
     }
 
     private void maybeWarnAboutDuplicates(List<ConfigSetting> settings) {
@@ -462,7 +444,7 @@ public class ConfigDoclet implements Doclet {
         reporter.print(Diagnostic.Kind.NOTE, String.format("writing help output on %d settings", items.size()));
         maybeWarnAboutDuplicates(items);
         items = items.stream().sorted(settingOrdering()).collect(Collectors.toList());
-        OutputFormatter formatter = getOutputFormatter();
+        OutputFormatter formatter = produceOutputFormatter();
         File outputFile = resolveOutputPath().toFile();
         if (!outputFile.getParentFile().isDirectory()) {
             //noinspection ResultOfMethodCallIgnored // will fail on open if dir could not be created
@@ -560,7 +542,7 @@ public class ConfigDoclet implements Doclet {
     }
 
     protected Path resolveOutputPath() {
-        String defaultValue = new File(System.getProperty("user.dir")).getAbsolutePath();
+        String defaultValue = System.getProperty("user.dir");
         String outputDirectory = optionage.getOptionString(OPT_OUTPUT_DIRECTORY, defaultValue);
         return new File(outputDirectory).toPath().resolve(getOutputFilename());
     }

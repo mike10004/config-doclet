@@ -2,7 +2,9 @@ package io.github.mike10004.configdoclet;
 
 import jdk.javadoc.doclet.Doclet;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -31,13 +33,14 @@ class PropertyOptionage implements Optionage {
     }
 
     @Override
-    public String getOptionString(String name, String defaultValue) {
+    @Nullable
+    public List<String> getOptionStrings(String name) {
         String propName = toSyspropName(name);
         String value = sysprops.apply(propName);
-        if (value == null) {
-            value = defaultValue;
+        if (value != null) {
+            return Collections.singletonList(value);
         }
-        return value;
+        return null;
     }
 
     String toSyspropName(String optionName) {

@@ -5,9 +5,11 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
@@ -31,5 +33,16 @@ public class CliOptionageTest {
             System.out.format("%s (%s) clashes with %s (%s)%n", a.getNames(), a.getDescription(), b.getNames(), b.getDescription());
         });
         assertEquals("conflicts", Collections.emptyList(), conflicts);
+    }
+
+    @Test
+    public void notSupported_group() {
+        Set<String> unsupported = ConfigDoclet.optionNamesNotSupported();
+        List<String> illegallySupported = new ConfigDoclet().getSupportedOptions().stream()
+                .map(Doclet.Option::getNames)
+                .flatMap(Collection::stream)
+                .filter(unsupported::contains)
+                .collect(Collectors.toList());
+        assertEquals("option support", Collections.emptyList(), illegallySupported);
     }
 }
