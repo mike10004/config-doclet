@@ -53,7 +53,7 @@ public class MavenInvocationTest {
         InvocationRequest request = new DefaultInvocationRequest();
         request.setInputStream(new ByteArrayInputStream(new byte[0]));
         request.setPomFile(projectDir.resolve("pom.xml").toFile());
-        request.setGoals(Arrays.asList("javadoc:javadoc", "--quiet"));
+        request.setGoals(Arrays.asList("prepare-package", "--quiet", "--batch-mode"));
         Properties properties = new Properties();
         properties.setProperty("java.home", System.getProperty("java.home"));
         request.setProperties(properties);
@@ -87,7 +87,7 @@ public class MavenInvocationTest {
         assertEquals("output file is all properties comments", 0, p.size());
     }
 
-    private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
+    private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.properties";
 
     private static File resolveMavenHome() throws IOException {
         for (MavenHomeSupplier supplier : getMavenHomePathnameSuppliers()) {

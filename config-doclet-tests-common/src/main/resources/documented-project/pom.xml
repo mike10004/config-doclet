@@ -91,15 +91,28 @@
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <debug>true</debug>
-                    <doclet>io.github.mike10004.configdoclet.ConfigDoclet</doclet>
-                    <docletArtifact>
-                        <groupId>${env.DOCLET_ARTIFACT_GROUP_ID}</groupId>
-                        <artifactId>${env.DOCLET_ARTIFACT_ARTIFACT_ID}</artifactId>
-                        <version>${env.DOCLET_ARTIFACT_VERSION}</version>
-                    </docletArtifact>
-                    <destDir>config-help</destDir>
+                    <doclint>none</doclint>
+                    <skip>true</skip>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-config-help</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>javadoc-no-fork</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <doclet>io.github.mike10004.configdoclet.ConfigDoclet</doclet>
+                            <docletArtifact>
+                                <groupId>${env.DOCLET_ARTIFACT_GROUP_ID}</groupId>
+                                <artifactId>${env.DOCLET_ARTIFACT_ARTIFACT_ID}</artifactId>
+                                <version>${env.DOCLET_ARTIFACT_VERSION}</version>
+                            </docletArtifact>
+                            <destDir>config-help</destDir>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

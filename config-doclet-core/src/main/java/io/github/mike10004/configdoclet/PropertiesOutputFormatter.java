@@ -69,6 +69,11 @@ class PropertiesOutputFormatter implements OutputFormatter {
         this.assignationHint = requireNonNull(assignationHint);
     }
 
+    @Override
+    public String suggestFilenameExtension() {
+        return "properties";
+    }
+
     @SuppressWarnings("RedundantThrows")
     @Override
     public void format(List<ConfigSetting> items, PrintWriter out) throws IOException {

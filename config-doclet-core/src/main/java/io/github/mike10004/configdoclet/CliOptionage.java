@@ -64,7 +64,7 @@ class CliOptionage implements Optionage {
         //noinspection RedundantArrayCreation
         return new HashSet<>(Arrays.asList(new Doclet.Option[]{
                 BasicOption.builder(ConfigDoclet.OPT_OUTPUT_FORMAT, processor)
-                        .alias("--output-format")
+                        .alias(ConfigDoclet.OPT_OUTPUT_FORMAT_GNU)
                         .arg("<type>")
                         .description("set config help output format (either 'properties' or 'json')")
                         .build(),

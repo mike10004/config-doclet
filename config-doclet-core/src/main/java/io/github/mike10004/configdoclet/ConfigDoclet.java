@@ -56,14 +56,15 @@ public class ConfigDoclet implements Doclet {
 
     private static final Logger log = Logger.getLogger(ConfigDoclet.class.getName());
 
-    private static final String DEFAULT_OUTPUT_FILENAME = "config-doclet-output.txt";
+    private static final String PREFIX_DEFAULT_OUTPUT_FILENAME = "config-doclet-output.";
 
     static final String SYSPROP_PRINT_EXTRA_DIAGNOSTICS = "configdoclet.diagnostics.extras.print";
     static final String OPT_OUTPUT_DIRECTORY = "-d";
     static final String OPT_OUTPUT_FILENAME = "--output-filename";
-    static final String OPT_FIELD_NAME_PATTERN = "--field-pattern";
-    static final String OPT_FIELD_NAME_REGEX = "--field-regex";
+    static final String OPT_FIELD_NAME_PATTERN = "--field-names";
+    static final String OPT_FIELD_NAME_REGEX = "--field-names-regex";
     static final String OPT_OUTPUT_FORMAT = "-outputformat";
+    static final String OPT_OUTPUT_FORMAT_GNU = "--output-format";
     static final String OPT_APPEND_SETTINGS = "--append-settings";
     static final String OPT_HEADER = "-header"; // piggyback on standard doclet setting
     static final String OPT_FOOTER = "-footer"; // piggyback on standard doclet setting
@@ -445,7 +446,7 @@ public class ConfigDoclet implements Doclet {
         maybeWarnAboutDuplicates(items);
         items = items.stream().sorted(settingOrdering()).collect(Collectors.toList());
         OutputFormatter formatter = produceOutputFormatter();
-        File outputFile = resolveOutputPath().toFile();
+        File outputFile = resolveOutputPath(formatter.suggestFilenameExtension()).toFile();
         if (!outputFile.getParentFile().isDirectory()) {
             //noinspection ResultOfMethodCallIgnored // will fail on open if dir could not be created
             outputFile.getParentFile().mkdirs();
@@ -541,14 +542,18 @@ public class ConfigDoclet implements Doclet {
 
     }
 
-    protected Path resolveOutputPath() {
+    protected Path resolveOutputPath(String extensionSuggestion) {
         String defaultValue = System.getProperty("user.dir");
         String outputDirectory = optionage.getOptionString(OPT_OUTPUT_DIRECTORY, defaultValue);
-        return new File(outputDirectory).toPath().resolve(getOutputFilename());
+        return new File(outputDirectory).toPath().resolve(getOutputFilename(extensionSuggestion));
     }
 
-    protected String getOutputFilename() {
-        return optionage.getOptionString(OPT_OUTPUT_FILENAME, DEFAULT_OUTPUT_FILENAME);
+    protected String getOutputFilename(String extensionSuggestion) {
+        String value = optionage.getOptionString(OPT_OUTPUT_FILENAME, null);
+        if (value == null) {
+            value = PREFIX_DEFAULT_OUTPUT_FILENAME + extensionSuggestion;
+        }
+        return value;
     }
 
 }

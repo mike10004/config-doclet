@@ -5,7 +5,7 @@
     <parent>
         <artifactId>config-doclet</artifactId>
         <groupId>com.github.mike10004</groupId>
-        <version>0.4</version>
+        <version>0.5</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -66,7 +66,7 @@
                             <cloneProjectsTo>${project.build.directory}/cloned</cloneProjectsTo>
                             <cloneClean>true</cloneClean>
                             <goals>
-                                <goal>test-compile</goal>
+                                <goal>javadoc:javadoc-no-fork</goal>
                             </goals>
                             <skipInvocation>${sampleProject.compile.skip}</skipInvocation>
                             <javaHome>${java.home}</javaHome>

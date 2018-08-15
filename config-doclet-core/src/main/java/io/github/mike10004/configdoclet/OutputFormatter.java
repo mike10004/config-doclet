@@ -11,6 +11,12 @@ interface OutputFormatter {
 
     void format(List<ConfigSetting> items, PrintWriter out) throws IOException;
 
+    /**
+     * Suggest a filename extension, not including a leading dot.
+     * @return a good filename extension for the output of this formatter
+     */
+    String suggestFilenameExtension();
+
     interface Factory {
 
         boolean isSpecifiedByFormatCode(String formatOptionParameterValue);

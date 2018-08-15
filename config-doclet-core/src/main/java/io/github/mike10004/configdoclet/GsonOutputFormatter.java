@@ -30,4 +30,9 @@ class GsonOutputFormatter implements OutputFormatter {
     public static Factory factory() {
         return Factory.forCode("json", optionage -> new GsonOutputFormatter());
     }
+
+    @Override
+    public String suggestFilenameExtension() {
+        return "json";
+    }
 }
