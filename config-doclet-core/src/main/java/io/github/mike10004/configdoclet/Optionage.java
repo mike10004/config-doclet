@@ -8,10 +8,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Interface that provides methods to parse and query a command line.
  */
-public interface Optionage {
+interface Optionage {
 
     /**
      * Gets the set of supported options.
@@ -24,9 +26,9 @@ public interface Optionage {
      * Gets a single parameter value for the given option or returns a default value. Use this
      * method only for options that take exactly one parameter value, because only the first
      * value will be returned for options accepting multiple parameter values. For options
-     * not accepting parameter values, this method will always return the default value.
-     * To check whether an option not accepting parameter values is present, use
-     * {@link #isPresent(String)}.
+     * that do not accept parameter values, this method will always return the default value,
+     * whether or not the option is present. To check whether an option that does not accept
+     * parameter values is present, use {@link #isPresent(String)}.
      *
      * @param name the option name
      * @param defaultValue the default value; if null, this method may return null
@@ -57,7 +59,14 @@ public interface Optionage {
         return getOptionStrings(name) != null;
     }
 
+    /**
+     * Creates a composite instance that implements this interface by querying multiple other instances.
+     * @param priority the first instance to query
+     * @param lessers the other instances to query, in order of priority
+     * @return a new instance representing a composite
+     */
     static Optionage compose(Optionage priority, Optionage...lessers) {
+        requireNonNull(priority, "priority");
         List<Optionage> optionages = Stream.concat(Stream.of(priority), Stream.of(lessers)).collect(Collectors.toList());
         return new Optionage() {
             @Override

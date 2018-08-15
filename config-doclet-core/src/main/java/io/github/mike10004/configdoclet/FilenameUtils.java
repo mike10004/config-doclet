@@ -81,7 +81,7 @@ import java.util.Stack;
  * @since 1.1
  */
 @SuppressWarnings({"unused", "RedundantThrows", "ToArrayCallWithZeroLengthArrayArgument", "IfCanBeSwitch", "PointlessBooleanExpression", "UnnecessaryEnumModifier"})
-public class FilenameUtils {
+class FilenameUtils {
 
     private static final int NOT_FOUND = -1;
 

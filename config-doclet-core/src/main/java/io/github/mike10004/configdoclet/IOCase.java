@@ -35,7 +35,7 @@ import java.io.Serializable;
  * @since 1.3
  */
 @SuppressWarnings({"UnnecessaryEnumModifier", "unused"})
-public enum IOCase implements Serializable {
+enum IOCase implements Serializable {
 
     /**
      * The constant for case sensitive regardless of operating system.
