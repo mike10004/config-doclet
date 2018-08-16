@@ -87,21 +87,7 @@ public class ConfigDoclet implements Doclet {
      * Constructs an instance of the class.
      */
     public ConfigDoclet() {
-        this(Optionage.compose(CliOptionage.standard(createOptionSupportPredicate()), PropertyOptionage.system()));
-    }
-
-    static Set<String> optionNamesNotSupported() {
-        return Set.of("-group", "-javafx", "--javafx", "-keywords");
-    }
-
-    private static Predicate<? super Option> createOptionSupportPredicate() {
-        // TODO reduce the interface size by removing support for some StandardDoclet options;
-        //      retain support for those that the maven-javadoc-plugin specifies under its default settings
-        Set<String> optionNamesNotSupported = optionNamesNotSupported();
-        return option -> {
-            List<String> names = option.getNames();
-            return names.stream().noneMatch(optionNamesNotSupported::contains);
-        };
+        this(Optionage.compose(CliOptionage.standard(), PropertyOptionage.system()));
     }
 
     ConfigDoclet(Optionage optionage) {
@@ -275,7 +261,7 @@ public class ConfigDoclet implements Doclet {
         }
     }
 
-    private Stream<? extends Doclet.Option> streamPresentOptions() {
+    private Stream<? extends Option> streamPresentOptions() {
         return optionage.getSupportedOptions().stream()
                 .filter(opt -> optionage.isPresent(opt.getNames().get(0)));
     }

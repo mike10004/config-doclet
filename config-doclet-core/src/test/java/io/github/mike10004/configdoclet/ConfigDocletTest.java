@@ -441,4 +441,22 @@ public class ConfigDocletTest {
         });
         assertTrue("has option: " + actual, actual);
     }
+
+    @Test
+    public void acceptsMavenJavadocPluginOptionsWithoutFailing() throws Exception {
+        execute(new String[]{
+                "-Xdoclint:none",
+                "-charset", "utf-8",
+                "-docencoding", "utf-8",
+                "-version",
+                "-author",
+                "-Xdocrootparent", "http://example.com/",
+                "-top", "foo",
+                "-bottom", "bar",
+                "-doctitle", "baz",
+                "-windowtitle", "hen",
+                "-use",
+                "-linkoffline", "gaw", "gee",
+        });
+    }
 }

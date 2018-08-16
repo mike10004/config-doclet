@@ -132,6 +132,11 @@ class BasicOption implements Doclet.Option {
             kind = Kind.STANDARD;
         }
 
+        public Builder kind (Doclet.Option.Kind kind) {
+            this.kind = requireNonNull(kind);
+            return this;
+        }
+
         public Builder alias(String name) {
             requireNonNull(name, "name");
             if (name.isEmpty()) {

@@ -35,14 +35,4 @@ public class CliOptionageTest {
         assertEquals("conflicts", Collections.emptyList(), conflicts);
     }
 
-    @Test
-    public void notSupported_group() {
-        Set<String> unsupported = ConfigDoclet.optionNamesNotSupported();
-        List<String> illegallySupported = new ConfigDoclet().getSupportedOptions().stream()
-                .map(Doclet.Option::getNames)
-                .flatMap(Collection::stream)
-                .filter(unsupported::contains)
-                .collect(Collectors.toList());
-        assertEquals("option support", Collections.emptyList(), illegallySupported);
-    }
 }

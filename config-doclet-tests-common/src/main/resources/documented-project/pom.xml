@@ -102,6 +102,7 @@
                             <goal>javadoc-no-fork</goal>
                         </goals>
                         <configuration>
+                            <debug>true</debug>
                             <skip>false</skip>
                             <doclet>io.github.mike10004.configdoclet.ConfigDoclet</doclet>
                             <docletArtifact>

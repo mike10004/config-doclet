@@ -1,7 +1,6 @@
 package io.github.mike10004.configdoclet;
 
 import jdk.javadoc.doclet.Doclet;
-import jdk.javadoc.doclet.StandardDoclet;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -11,20 +10,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
 class CliOptionage implements Optionage {
 
     // immutable
-    private final Set<Doclet.Option> options;
+    private final Set<? extends Doclet.Option> options;
 
     // mutable
     private final Processage processage;
 
-    private CliOptionage(Set<Doclet.Option> options, Processage processage) {
+    private CliOptionage(Set<? extends Doclet.Option> options, Processage processage) {
         this.options = Collections.unmodifiableSet(requireNonNull(options));
         this.processage = requireNonNull(processage);
     }
@@ -59,10 +56,74 @@ class CliOptionage implements Optionage {
         return combo;
     }
 
+    private static Doclet.Option dummyOption(String name, int numArgs, String...otherNames) {
+        return dummyOption(Doclet.Option.Kind.STANDARD, name, numArgs, otherNames);
+    }
+
+    private static Doclet.Option dummyExtendedOption(String name, int numArgs, String...otherNames) {
+        return dummyOption(Doclet.Option.Kind.EXTENDED, name, numArgs, otherNames);
+    }
+
+    private static Doclet.Option doclintOptions() {
+        return new Doclet.Option() {
+            @Override
+            public int getArgumentCount() {
+                return 0;
+            }
+
+            @Override
+            public String getDescription() {
+                return "not used by this doclet";
+            }
+
+            @Override
+            public Kind getKind() {
+                return Kind.EXTENDED;
+            }
+
+            @Override
+            public List<String> getNames() {
+                return Arrays.asList(
+                        "-Xdoclint:none", 
+                        "-Xdoclint:all", 
+                        "-Xdoclint:accessibility", 
+                        "-Xdoclint:html", 
+                        "-Xdoclint:missing", 
+                        "-Xdoclint:reference", 
+                        "-Xdoclint:syntax",
+                        "-Xdoclint"
+                );
+            }
+
+            @Override
+            public String getParameters() {
+                return "";
+            }
+
+            @Override
+            public boolean process(String option, List<String> arguments) {
+                return true;
+            }
+        };
+    }
+
+    private static Doclet.Option dummyOption(Doclet.Option.Kind kind, String name, int numArgs, String...otherNames) {
+        BasicOption.Processor processor = (x, y) -> true;
+        return BasicOption.builder(name, processor)
+                .argCount(numArgs)
+                .kind(kind)
+                .aliases(Arrays.stream(otherNames))
+                .build();
+    }
+
     private static Set<? extends Doclet.Option> getInternalOptions(Processage processage) {
         BasicOption.Processor processor = processage.processor();
         //noinspection RedundantArrayCreation
         return new HashSet<>(Arrays.asList(new Doclet.Option[]{
+                BasicOption.builder(ConfigDoclet.OPT_OUTPUT_DIRECTORY, processor)
+                        .arg("<dirname>")
+                        .description("set output directory; see also " + ConfigDoclet.OPT_OUTPUT_FILENAME)
+                        .build(),
                 BasicOption.builder(ConfigDoclet.OPT_OUTPUT_FORMAT, processor)
                         .alias(ConfigDoclet.OPT_OUTPUT_FORMAT_GNU)
                         .arg("<type>")
@@ -88,6 +149,27 @@ class CliOptionage implements Optionage {
                         .arg("<auto|always|never>")
                         .description("in properties output, specifies whether the value assignation in the output properties file is commented")
                         .build(),
+                BasicOption.builder(ConfigDoclet.OPT_FOOTER, processor)
+                        .arg("<text|fileurl>")
+                        .description("set header")
+                        .build(),
+                BasicOption.builder(ConfigDoclet.OPT_HEADER, processor)
+                        .arg("<text|fileurl>")
+                        .description("set header")
+                        .build(),
+                dummyOption("-charset", 1),
+                dummyOption("-docencoding", 1),
+                dummyOption("-author", 0),
+                dummyOption("-use", 0),
+                dummyOption("-version", 0),
+                dummyOption("-notree", 0),
+                dummyOption("-top", 1),
+                dummyOption("-doctitle", 1),
+                dummyOption("-windowtitle", 1),
+                dummyOption("-bottom", 1),
+                dummyOption("-linkoffline", 2),
+                doclintOptions(),
+                dummyExtendedOption("-Xdocrootparent", 1),
         }));
     }
 
@@ -97,38 +179,9 @@ class CliOptionage implements Optionage {
     }
 
     public static CliOptionage standard() {
-        return standard(x -> true);
-    }
-
-    public static CliOptionage standard(Predicate<? super Doclet.Option> supportPredicate) {
         Processage processage = Processage.fromMap(new HashMap<>());
-        Set<Doclet.Option> options = createOptionSet(supportPredicate, processage);
+        Set<? extends Doclet.Option> options = getInternalOptions(processage);
         return new CliOptionage(options, processage);
-    }
-
-    private static Set<Doclet.Option> createOptionSet(Predicate<? super Doclet.Option> supportPredicate, Processage processage) {
-        // TODO add option for element name predicate
-        //noinspection RedundantStreamOptionalCall
-        Set<? extends Doclet.Option> defaultOptions = new StandardDoclet().getSupportedOptions().stream()
-                .filter(supportPredicate)
-                .map(option -> wrap(option, processage))
-                .collect(Collectors.toSet());
-        Set<? extends Doclet.Option> internalOptions = getInternalOptions(processage);
-        return (deconflict(defaultOptions, internalOptions));
-    }
-
-    private static BasicOption wrap(Doclet.Option opt, Processage processage) {
-        BasicOption.Processor p = (option, arguments) -> {
-            boolean retval = opt.process(option, Collections.unmodifiableList(arguments));
-            boolean retval2 = processage.accept(option, arguments);
-            return retval && retval2;
-        };
-        return BasicOption.builder(opt.getNames().get(0), p)
-                .aliases(opt.getNames().subList(1, opt.getNames().size()).stream())
-                .description(opt.getDescription())
-                .parameters(opt.getParameters())
-                .argCount(opt.getArgumentCount())
-                .build();
     }
 
     interface Processage {
