@@ -8,22 +8,39 @@ config-doclet
 Javadoc Doclet that produces a configuration help file for your project. This 
 uses the JDK 9 Doclet API, with all the fun that entails.
 
-If you're like me, your programs often read configuration parameters from text 
-files. The settings contained in these text files are often keyed by string 
-constants that are defined in my source code. This doclet allows you to 
-generate documentation about your configuration settings by adding Javadoc 
-comments to the static final fields that define your configuration keys. This 
-helps you keep your program's documentation complete and in sync with the 
-source code while not requiring that your users dig into the source code or 
-API docs.
+If you're like me, your programs often have code like this:
 
-The plugin assumes that you want output appropriate for a properties file  
-suitable to be loaded by `java.util.Properties`. As an alternative, you can 
-generate JSON-formatted output and use your own subsequent plugins or programs 
-to transform that into human-readable documentation.    
+    private static final String CFG_FOO = "app.stuff.foo";
+    private static final String DEFAULT_FOO = "bar";
+    
+    // ...
+    
+    Properties config = getAppConfig();
+    System.out.println("The foo is " + config.getProperty(CFG_FOO, DEFAULT_FOO));
+
+That is, a program reads configuration parameters from text files, and the 
+strings used to get the setting values from a `Properties` object are 
+defined as constants. Frequently, the default values are defined as 
+constants. 
+
+When it comes time to tell your users how your program can be configured,
+you have to manually write up documentation with all the constant values
+with descriptions and default values. That's a pain because it's a lot of 
+extra work and it becomes obsolete when the code changes.
+
+This doclet allows you to generate user-facing documentation about your 
+configuration settings from Javadoc comments on the static final fields 
+that define your configuration keys. This helps you keep your program's 
+documentation complete and in sync with the source code while not 
+requiring that your users dig into the source code or API docs.
+
+The plugin assumes that you want output suitable for a `.properties` file. 
+As an alternative, you can generate JSON-formatted output and use your own 
+subsequent plugins or programs to transform that into human-readable 
+documentation.    
 
 Overview
------------------------------------- 
+--------
 
 Consider this example class:
 
@@ -143,7 +160,7 @@ configuration parameters to ignore this doclet's tags (which all have prefix
 `cfg.`), or use `<doclint>none</doclint>` to ignore non-fatal errors during 
 Javadoc generation.
 
-Run from the command line
+Running from the command line
 -------------------------
 
 Running from the command line is a bit burdernsome because the doclet has some 
