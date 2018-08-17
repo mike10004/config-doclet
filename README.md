@@ -98,7 +98,8 @@ Doclet Options
 --------------
 
 * **--field-names** restricts the static final fields examined to those whose 
-  names match the argument pattern  (use wildcards `?` and `*`)
+  names match the argument; you can use wildcards `?` and `*` and delimit 
+  patterns with commas, e.g. `KEY_*,CONFIG_*`
 * **--field-names-regex** restricts the static final fields examined to those 
   whose names match the argument Java-syntax regex
 * **--output-filename** sets the output filename
