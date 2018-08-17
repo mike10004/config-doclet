@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Function;
@@ -33,6 +32,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class MavenInvocationTest {
 
@@ -68,10 +68,12 @@ public class MavenInvocationTest {
         invoker.setWorkingDirectory(temporaryFolder.newFolder());
         InvocationResult result = invoker.execute(request);
         CommandLineException exception = result.getExecutionException();
+        Object exitCode = result.getExitCode();
         if (exception != null) {
             exception.printStackTrace(System.out);
+            fail(String.format("exit code %s with exception %s%n", exitCode, exception));
         }
-        assertEquals("exit code", 0, result.getExitCode());
+        assertEquals("exit code", Integer.valueOf(0), exitCode);
         File outputFile = projectDir.resolve("target")
                 .resolve("site/apidocs") // maven-javadoc-plugin default
                 .resolve("config-help")
