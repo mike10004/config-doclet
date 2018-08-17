@@ -44,22 +44,11 @@ class CliOptionage implements Optionage {
         return null;
     }
 
-    private static Set<Doclet.Option> deconflict(Set<? extends Doclet.Option> superset, Set<? extends Doclet.Option> preferred) {
-        Set<Doclet.Option> combo = new HashSet<>(preferred);
-        for (Doclet.Option disliked : superset) {
-            for (Doclet.Option preferredOne : preferred) {
-                if (!BasicOption.isConflicting(preferredOne, disliked)) {
-                    combo.add(disliked);
-                }
-            }
-        }
-        return combo;
-    }
-
     private static Doclet.Option dummyOption(String name, int numArgs, String...otherNames) {
         return dummyOption(Doclet.Option.Kind.STANDARD, name, numArgs, otherNames);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static Doclet.Option dummyExtendedOption(String name, int numArgs, String...otherNames) {
         return dummyOption(Doclet.Option.Kind.EXTENDED, name, numArgs, otherNames);
     }
@@ -121,49 +110,70 @@ class CliOptionage implements Optionage {
         //noinspection RedundantArrayCreation
         return new HashSet<>(Arrays.asList(new Doclet.Option[]{
                 BasicOption.builder(ConfigDoclet.OPT_OUTPUT_DIRECTORY, processor)
+                        .alias(ConfigDoclet.OPT_OUTPUT_DIRECTORY_ALIAS)
                         .arg("<dirname>")
                         .description("set output directory; see also " + ConfigDoclet.OPT_OUTPUT_FILENAME)
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_OUTPUT_FORMAT, processor)
-                        .alias(ConfigDoclet.OPT_OUTPUT_FORMAT_GNU)
+                        .autoAlias()
                         .arg("<type>")
                         .description("set config help output format (either 'properties' or 'json')")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_FIELD_NAME_REGEX, processor)
+                        .autoAlias()
                         .arg("<regex>")
                         .description("restrict documentable fields to those whose name matches a regex")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_OUTPUT_FILENAME, processor)
+                        .autoAlias()
                         .arg("<filename>")
                         .description("set output filename")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_FIELD_NAME_PATTERN, processor)
+                        .autoAlias()
                         .arg("<patterns>")
                         .description("restrict documentable fields to those whose name matches a wildcard pattern (using '*' and '?'); delimit multiple patterns with commas or whitespace")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_APPEND_SETTINGS, processor)
+                        .autoAlias()
                         .arg("<jsonfile>")
-                        .description("append the settings parsed from json output of this doclet in specified file")
+                        .description("append the settings parsed from json output of prior execution of this doclet")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_ASSIGNATION_HINT, processor)
+                        .autoAlias()
                         .arg("<auto|always|never>")
                         .description("in properties output, specifies whether the value assignation in the output properties file is commented")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_FOOTER, processor)
+                        .autoAlias()
                         .arg("<text|fileurl>")
                         .description("set header")
                         .build(),
                 BasicOption.builder(ConfigDoclet.OPT_HEADER, processor)
+                        .autoAlias()
                         .arg("<text|fileurl>")
                         .description("set header")
                         .build(),
+                BasicOption.builder(ConfigDoclet.OPT_DOCENCODING, processor)
+                        .autoAlias()
+                        .arg("<charset>")
+                        .description("set output charset")
+                        .build(),
+                BasicOption.builder(ConfigDoclet.OPT_TEST_MODE, processor)
+                        .autoAlias()
+                        .arg(ConfigDoclet.TestMode.describeChoices())
+                        .description("specify test mode (for testing purposes)")
+                        .build(),
                 dummyOption("-charset", 1),
-                dummyOption("-docencoding", 1),
                 dummyOption("-author", 0),
+                dummyOption("-noindex", 0),
+                dummyOption("-splitindex", 0),
+                dummyOption("-nonavbar", 0),
                 dummyOption("-use", 0),
                 dummyOption("-version", 0),
                 dummyOption("-notree", 0),
                 dummyOption("-top", 1),
+                dummyOption("-excludedocfilessubdir", 1),
                 dummyOption("-doctitle", 1),
                 dummyOption("-windowtitle", 1),
                 dummyOption("-bottom", 1),

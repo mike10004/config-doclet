@@ -457,6 +457,10 @@ public class ConfigDocletTest {
                 "-windowtitle", "hen",
                 "-use",
                 "-linkoffline", "gaw", "gee",
+                "-noindex",
+                "-nonavbar",
+                "-splitindex",
+                "-excludedocfilessubdir", "/fake/path/1:/fake/path/2",
         });
     }
 }

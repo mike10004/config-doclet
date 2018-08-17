@@ -81,21 +81,13 @@ class BasicOption implements Doclet.Option {
                 .toString();
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private static String trimLeading(String original, String ugly) {
-        while (original.startsWith(ugly)) {
-            original = original.substring(ugly.length());
-        }
-        return original;
-    }
-
     private static final String OPTION_INDICATOR = "-";
 
     public static boolean isConflicting(Doclet.Option me, Doclet.Option option) {
         for (String myName : me.getNames()) {
-            myName = trimLeading(myName, OPTION_INDICATOR);
+            myName = Stringage.trimLeadingFrom(myName, OPTION_INDICATOR);
             for (String otherName : option.getNames()) {
-                otherName = trimLeading(otherName, OPTION_INDICATOR);
+                otherName = Stringage.trimLeadingFrom(otherName, OPTION_INDICATOR);
                 if (myName.equalsIgnoreCase(otherName)) {
                     return true;
                 }
@@ -115,12 +107,14 @@ class BasicOption implements Doclet.Option {
      * Builder of option instances.
      */
     public static class Builder {
+
         private final List<String> names;
         private final Processor processor;
         private String parameters;
         private String description;
         private int argCount;
         private Kind kind;
+        private boolean autoAlias;
 
         private Builder(String name, Processor processor) {
             requireNonNull(name, "name");
@@ -128,8 +122,17 @@ class BasicOption implements Doclet.Option {
             this.names.add(name);
             this.processor = requireNonNull(processor, "processor");
             parameters = null;
-            description = "set " + trimLeading(name, OPTION_INDICATOR);
+            description = "set " + Stringage.trimLeadingFrom(name, OPTION_INDICATOR);
             kind = Kind.STANDARD;
+        }
+
+        /**
+         * Automatically create aliases for names by ensuring names list contains both -foo and --foo.
+         * @return this builder instance
+         */
+        public Builder autoAlias() {
+            autoAlias = true;
+            return this;
         }
 
         public Builder kind (Doclet.Option.Kind kind) {
@@ -166,7 +169,24 @@ class BasicOption implements Doclet.Option {
             return this;
         }
 
+        private static void addAutoAliases(List<String> names) {
+            List<String> toBeAdded = new ArrayList<>(names.size() * 2);
+            for (String name : names) {
+                String cleanName = Stringage.trimLeadingFrom(name, '-');
+                toBeAdded.add("-" + cleanName);
+                toBeAdded.add("--" + cleanName);
+            }
+            for (String candidate : toBeAdded) {
+                if (!names.contains(candidate)) {
+                    names.add(candidate);
+                }
+            }
+        }
+
         public BasicOption build() {
+            if (autoAlias) {
+                addAutoAliases(names);
+            }
             return new BasicOption(names, processor, parameters, description, argCount, kind);
         }
 

@@ -101,16 +101,6 @@ class PropertiesOutputFormatter implements OutputFormatter {
         return value;
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private static String trimLeadingFrom(String str, char ch) {
-        for (int i = 0; i < str.length(); i++) {
-            if (str.charAt(i) != ch) {
-                return str.substring(i);
-            }
-        }
-        return "";
-    }
-
     protected String formatExample(ConfigSetting.ExampleValue example) {
         if (example.description == null || example.description.trim().isEmpty()) {
             return String.format(" Example: %s", example.value);
@@ -122,7 +112,7 @@ class PropertiesOutputFormatter implements OutputFormatter {
     @SuppressWarnings("RedundantThrows")
     void format(ConfigSetting setting, PrintWriter out) throws IOException {
         if (setting.description != null) {
-            String desc = " " + trimLeadingFrom(setting.description, ' ');
+            String desc = " " + Stringage.trimLeadingFrom(setting.description, ' ');
             StringEscaping.writePropertyComment(desc, out);
         }
         if (!setting.exampleValues.isEmpty()) {

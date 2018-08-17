@@ -60,14 +60,16 @@ public class ConfigDoclet implements Doclet {
 
     static final String SYSPROP_PRINT_EXTRA_DIAGNOSTICS = "configdoclet.diagnostics.extras.print";
     static final String OPT_OUTPUT_DIRECTORY = "-d";
+    static final String OPT_OUTPUT_DIRECTORY_ALIAS = "--output-directory";
     static final String OPT_OUTPUT_FILENAME = "--output-filename";
     static final String OPT_FIELD_NAME_PATTERN = "--field-names";
+    static final String OPT_TEST_MODE = "--test-mode";
     static final String OPT_FIELD_NAME_REGEX = "--field-names-regex";
-    static final String OPT_OUTPUT_FORMAT = "-outputformat";
-    static final String OPT_OUTPUT_FORMAT_GNU = "--output-format";
+    static final String OPT_OUTPUT_FORMAT = "--output-format";
     static final String OPT_APPEND_SETTINGS = "--append-settings";
-    static final String OPT_HEADER = "-header"; // piggyback on standard doclet setting
-    static final String OPT_FOOTER = "-footer"; // piggyback on standard doclet setting
+    static final String OPT_DOCENCODING = "-docencoding";
+    static final String OPT_HEADER = "-header";
+    static final String OPT_FOOTER = "-footer";
     static final String OPT_ASSIGNATION_HINT = "--assign-value";
     static final String OUTPUT_FORMAT_PROPERTIES = "properties";
     private static final String DEFAULT_OUTPUT_FORMAT = OUTPUT_FORMAT_PROPERTIES;
@@ -266,8 +268,16 @@ public class ConfigDoclet implements Doclet {
                 .filter(opt -> optionage.isPresent(opt.getNames().get(0)));
     }
 
+    @Nullable
+    private TestMode getTestMode() {
+        return TestMode.fromToken(optionage.getOptionString(OPT_TEST_MODE, null));
+    }
+
     @Override
     public boolean run(DocletEnvironment environment) {
+        if (TestMode.SKIP_RUN == getTestMode()) {
+            return true;
+        }
         extraDiagnostic(() -> String.format("options active: %s", streamPresentOptions()
                 .map(opt -> opt.getNames().get(0))
                 .collect(Collectors.toList())));
@@ -344,7 +354,7 @@ public class ConfigDoclet implements Doclet {
     }
 
     private Charset getAppendOthersCharset() {
-        // TODO support option to specify this
+        // TODO support option to specify input files option
         return StandardCharsets.UTF_8;
     }
 
@@ -396,8 +406,8 @@ public class ConfigDoclet implements Doclet {
     }
 
     protected Charset getOutputCharset() {
-        // TODO get charset from options
-        return StandardCharsets.UTF_8;
+        String defaultCharsetName = Charset.defaultCharset().name();
+        return Charset.forName(optionage.getOptionString(OPT_DOCENCODING, defaultCharsetName));
     }
 
     private Iterable<OutputFormatter.Factory> getOutputFormatterFactories() {
@@ -540,6 +550,33 @@ public class ConfigDoclet implements Doclet {
             value = PREFIX_DEFAULT_OUTPUT_FILENAME + extensionSuggestion;
         }
         return value;
+    }
+
+    enum TestMode {
+
+        SKIP_RUN;
+
+        @Nullable
+        public static TestMode fromToken(@Nullable String token) {
+            if (token !=  null) {
+                String normalizedToken = normalize(token);
+                for (TestMode mode : values()) {
+                    String normalizedName = normalize(mode.name());
+                    if (normalizedToken.equalsIgnoreCase(normalizedName)) {
+                        return mode;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static String normalize(String input) {
+            return input.replaceAll("[\\W_]", "").toLowerCase();
+        }
+
+        public static String describeChoices() {
+            return "<" + Arrays.stream(values()).map(Enum::name).map(TestMode::normalize).collect(Collectors.joining("|")) + ">";
+        }
     }
 
 }
