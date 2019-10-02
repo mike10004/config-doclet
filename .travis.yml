@@ -4,5 +4,13 @@ jdk:
   - openjdk9
   - oraclejdk10
   - openjdk10
+  - openjdk11
 notifications:
   email: false
+cache:
+  directories:
+    - $HOME/.m2
+install:
+  - mvn $MAVEN_OPTIONS -B -V dependency:go-offline compile test-compile
+script:
+  - mvn $MAVEN_OPTIONS -B -V install
